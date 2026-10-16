@@ -48,24 +48,30 @@ export class BrowserStorageAdapter implements IStorageService {
 
     this.initPromise = (async () => {
       try {
+        const sample = createSampleProject();
         const wsRaw = localStorage.getItem(KEY_WORKSPACE);
         let hasValidProject = false;
+
+        // Ensure Getting Started sample project is ALWAYS seeded for every user
+        const existingGettingStarted = this.loadProjectDataFromStorage(sample.project.id);
+        if (!existingGettingStarted) {
+          this.saveProjectDataToStorage(sample);
+        }
 
         if (wsRaw) {
           try {
             const ws: Workspace = JSON.parse(wsRaw);
-            if (ws.activeProjectId) {
-              const activeData = this.loadProjectDataFromStorage(ws.activeProjectId);
-              if (activeData) {
-                hasValidProject = true;
-                this.isInitialized = true;
-                // Background non-blocking SQLite indexing
-                sqliteIndexService.init().then(() => {
-                  sqliteIndexService.rebuildIndex(activeData);
-                }).catch((err) => {
-                  console.warn('Background SQLite indexing error:', err);
-                });
-              }
+            const targetId = ws.activeProjectId || sample.project.id;
+            const activeData = this.loadProjectDataFromStorage(targetId);
+            if (activeData) {
+              hasValidProject = true;
+              this.isInitialized = true;
+              // Background non-blocking SQLite indexing
+              sqliteIndexService.init().then(() => {
+                sqliteIndexService.rebuildIndex(activeData);
+              }).catch((err) => {
+                console.warn('Background SQLite indexing error:', err);
+              });
             }
           } catch (e) {
             console.error('Error parsing existing workspace:', e);
@@ -73,7 +79,6 @@ export class BrowserStorageAdapter implements IStorageService {
         }
 
         if (!hasValidProject) {
-          const sample = createSampleProject();
           const now = new Date().toISOString();
           const initialWorkspace: Workspace = {
             id: 'default-workspace',

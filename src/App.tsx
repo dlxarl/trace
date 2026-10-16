@@ -32,6 +32,7 @@ import { DeleteConfirmModal } from '@/components/modals/DeleteConfirmModal';
 import { CommandPaletteModal } from '@/components/modals/CommandPaletteModal';
 import { ShortcutsModal } from '@/components/modals/ShortcutsModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
+import { createSampleProject } from '@/services/storage/sampleData';
 import saveAs from 'file-saver';
 
 export function App() {
@@ -119,17 +120,35 @@ export function App() {
       const ws = await storage.getWorkspace();
       setWorkspace(ws);
 
-      const projs = await storage.listProjects();
-      setProjects(projs);
+      let projs = await storage.listProjects();
+      const sample = createSampleProject();
 
-      let targetProjectId = ws.activeProjectId || projs[0]?.id;
-      if (!targetProjectId && projs.length === 0) {
-        const created = await storage.createProject('Default Investigation');
-        targetProjectId = created.id;
-        const updatedProjs = await storage.listProjects();
-        setProjects(updatedProjs);
+      // Ensure the Getting Started tutorial project exists for everyone
+      if (!projs.some((p) => p.id === sample.project.id)) {
+        try {
+          await storage.createProject(sample.project.name);
+          await storage.saveProject(sample.project);
+          for (const ent of sample.entities) {
+            await storage.saveEntity(sample.project.id, ent);
+          }
+          for (const rel of sample.relationships) {
+            await storage.saveRelationship(sample.project.id, rel);
+          }
+          for (const src of sample.sources) {
+            await storage.saveSource(sample.project.id, src);
+          }
+          for (const note of sample.notes) {
+            await storage.saveNote(sample.project.id, note);
+          }
+        } catch (e) {
+          console.warn('Seeding getting-started error:', e);
+        }
+        projs = await storage.listProjects();
       }
 
+      setProjects(projs);
+
+      let targetProjectId = ws.activeProjectId || sample.project.id;
       if (targetProjectId) {
         setActiveProjectId(targetProjectId);
         let data = await storage.getProject(targetProjectId);

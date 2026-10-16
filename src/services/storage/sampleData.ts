@@ -4,20 +4,51 @@ export function createSampleProject(): ProjectData {
   const now = new Date().toISOString();
 
   const project: Project = {
-    id: 'project-nightfall',
+    id: 'project-getting-started',
     type: 'project',
-    name: 'Operation Nightfall — Threat Actor Profiling',
+    name: 'Getting Started — Trace Tutorial & Overview',
     created_at: now,
     updated_at: now,
-    markdownBody: `# Operation Nightfall
+    markdownBody: `# Getting Started with Trace OSINT
 
-## Objective
-Investigate the cyber infrastructure, shell corporate registrations, and operational identities behind the dark marketplace mirror \`nightmarket-vault.cc\` and identify beneficial owners.
+Welcome to **Trace**, your local-first intelligence investigation workbench designed for cyber threat intelligence, private investigations, and open-source intelligence (OSINT).
 
-## Key Findings
-- Subject Alexei Morozov identified via historical whois record matching proton.me email address.
-- Shell corporation *Nordic Cyber Shield OU* in Estonia acts as registrant billing shield.
-- Operational Telegram channel publishes mirrors and PGP signed updates matching on-chain escrow addresses.
+---
+
+## ⚡ Quick Start & Interactive Feature Tour
+
+### 1. 🌐 Interactive Graph Canvas
+- **Circular Glow & Avatars**: Entities feature clean circular nodes, photos/avatars inside nodes, and soft glowing halo effects on hover without rectangular artifact boxes.
+- **Physics Bounce Simulation**: Click and drag any node on the graph canvas — notice how neighboring nodes calculate repulsive forces and gently bounce out of the way!
+- **Notes on the Graph**: Toggle the **Notes (StickyNote)** icon in the top-right toolbar of the graph to display investigation notes directly on the graph canvas, automatically connected via \`[[wikilinks]]\`.
+
+### 2. 👤 Entity Records & Photo Support
+- Double-click on **Elena Rostova** in the left sidebar or graph to view her profile.
+- You can upload local photos (converted to data URLs) or paste external image URLs to give any entity a recognizable face.
+- Notice attribute preset suggestions: start typing in attribute key fields to get Google-search-style autocomplete suggestions for \`phone\`, \`email\`, \`address\`, \`crypto_wallet\`, etc.
+
+### 3. 🗺️ Integrated Map for Addresses & Locations
+- Open the entity **OSINT Operations Center (London HQ)**.
+- Notice the address and coordinates attribute: click the **Map** button next to it to immediately open the interactive OpenStreetMap viewer with coordinate lookup.
+
+### 4. 🗂️ VS Code-Style Tabs
+- Single-clicking items opens them in a **Preview Tab** (italic title).
+- If you open another record without making changes, the preview tab is cleanly replaced.
+- Double-click the tab, edit any field, or right-click and select **Pin** to make it permanent.
+
+### 5. 🖱️ Custom Context Menus Everywhere
+- Right-click anywhere: on graph nodes, edges, canvas background, sidebar items, and tab headers to access contextual actions.
+
+### 6. 📁 Open Project in Finder / File Explorer
+- Click **Open Folder** in the project header or the sidebar footer to open your raw \`.md\` Markdown files directly on your operating system's disk.
+
+### 7. ⌨️ Keyboard Shortcuts
+- Press \`?\` or \`Cmd/Ctrl + /\` to open the full Keyboard Shortcuts cheat-sheet.
+- \`Cmd/Ctrl + K\`: Command Palette
+- \`Cmd/Ctrl + G\`: Jump to Graph Canvas
+- \`Cmd/Ctrl + O\`: Project Overview
+- \`Cmd/Ctrl + F\`: Local SQLite Full-Text Search
+- \`Cmd/Ctrl + ,\`: Application Settings
 `,
   };
 
@@ -25,186 +56,189 @@ Investigate the cyber infrastructure, shell corporate registrations, and operati
     {
       id: 'ent-person-01',
       type: 'person',
-      name: 'Alexei "Kestrel" Morozov',
-      aliases: ['kestrel_ops', 'moroz_sec', 'Алексей Морозов'],
+      name: 'Elena "Cipher" Rostova',
+      aliases: ['elena_cipher', 'cipher_ops', 'Елена Ростова'],
       created_at: now,
       updated_at: now,
-      tags: ['subject-of-interest', 'operator', 'tier-1'],
+      tags: ['lead-subject', 'cryptography', 'tier-1'],
       attributes: {
-        nationality: 'Russian / Estonian e-Resident',
-        timezone: 'UTC+3',
-        pgp_fingerprint: '4E9B 81A2 DF09 C321',
-        primary_handle: 'kestrel_ops',
-        photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        photo: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80',
+        phone: '+44 20 7946 0912',
+        email: 'e.rostova@osint-lab.org',
+        telegram: '@elena_cipher',
+        nationality: 'British / Ukrainian',
+        pgp_fingerprint: '8F2B 3C19 D94A 7E51',
       },
-      markdownBody: `# Alexei "Kestrel" Morozov
+      markdownBody: `# Elena "Cipher" Rostova
 
-## Summary
-Suspected administrator and key infrastructure operator for the NightMarket syndication network. Identified through overlapping domain registrant credentials and operational security lapses in PGP key distribution.
+## Profile Summary
+Senior threat intelligence analyst and digital forensics specialist. Serves as our primary demonstrator profile in this Getting Started workspace.
 
-## Findings
-- Consistently active during Eastern European business hours.
-- PGP key signed multiple release manifestos distributed on underground Telegram channels.
-- Listed as board member of an Estonian registry entity.
+## Key Observations
+- Operates primary secure gateway communications for [[ent-organization-01]].
+- Frequently accesses operational infrastructure from [[ent-location-01]].
+- Associated with Telegram channel and broadcast bot [[ent-account-01]].
 
-## Sources
-- [[src-05]] Estonian Business e-Register Filing
-- [[src-01]] Telegram Broadcast Channel Dump
-`,
-    },
-    {
-      id: 'ent-account-01',
-      type: 'account',
-      name: '@kestrel_dev',
-      aliases: ['t.me/kestrel_dev'],
-      created_at: now,
-      updated_at: now,
-      tags: ['social', 'telegram', 'broadcast'],
-      attributes: {
-        platform: 'Telegram',
-        channel_id: '-10018920192',
-        subscriber_count: 4200,
-        creation_date: '2023-04-12',
-      },
-      markdownBody: `# @kestrel_dev
-
-## Summary
-Public Telegram broadcast channel publishing infrastructure migration announcements, mirror links, and cryptographic proofs for the operation.
-
-## Findings
-Channel bio contains a signed statement referencing \`nightmarket-vault.cc\`.
-`,
-    },
-    {
-      id: 'ent-email-01',
-      type: 'email',
-      name: 'morozov.ops@proton.me',
-      aliases: [],
-      created_at: now,
-      updated_at: now,
-      tags: ['contact', 'protonmail', 'infrastructure'],
-      attributes: {
-        provider: 'Proton AG',
-        recovery_email_hint: 'a****v@mail.ru',
-      },
-      markdownBody: `# morozov.ops@proton.me
-
-## Summary
-Encrypted email address found in historic WHOIS records for domain registration.
-`,
-    },
-    {
-      id: 'ent-domain-01',
-      type: 'domain',
-      name: 'nightmarket-vault.cc',
-      aliases: ['www.nightmarket-vault.cc'],
-      created_at: now,
-      updated_at: now,
-      tags: ['infrastructure', 'c2', 'clearnet-mirror'],
-      attributes: {
-        registrar: 'Njalla / 1337 Services LLC',
-        tld: '.cc',
-        registered_on: '2023-11-04',
-      },
-      markdownBody: `# nightmarket-vault.cc
-
-## Summary
-Clearnet portal functioning as a reverse proxy fronting hidden onion services. Resolves to bulletproof hosting IP.
-`,
-    },
-    {
-      id: 'ent-ip-01',
-      type: 'ip',
-      name: '185.220.101.45',
-      aliases: [],
-      created_at: now,
-      updated_at: now,
-      tags: ['vps', 'bulletproof', 'network'],
-      attributes: {
-        asn: 'AS200052',
-        isp: 'FlokiNET ehf',
-        city: 'Amsterdam',
-        country: 'Netherlands',
-      },
-      markdownBody: `# 185.220.101.45
-
-## Summary
-Dedicated server hosted in an offshore bulletproof data facility. Multiple abuse complaints on record without remediation.
-`,
-    },
-    {
-      id: 'ent-company-01',
-      type: 'company',
-      name: 'Nordic Cyber Shield OU',
-      aliases: ['Nordic Cyber Shield Private Limited'],
-      created_at: now,
-      updated_at: now,
-      tags: ['shell-company', 'corporate-vehicle', 'estonia'],
-      attributes: {
-        registration_number: '16492019',
-        jurisdiction: 'Estonia',
-        capital: '2500 EUR',
-        vat_id: 'EE102492102',
-      },
-      markdownBody: `# Nordic Cyber Shield OU
-
-## Summary
-Estonian private limited company registered in May 2022. Used to sign vendor contracts with European hosting providers and cloud protection services.
+## Evidence References
+- [[src-01]] Official Registration Records
+- [[src-03]] Passive DNS & WHOIS Archival Extract
 `,
     },
     {
       id: 'ent-location-01',
       type: 'location',
-      name: 'Tallinn, Estonia',
-      aliases: ['Harju maakond, Tallinn'],
+      name: 'OSINT Operations Center (London HQ)',
+      aliases: ['London Station', 'HQ Alpha'],
       created_at: now,
       updated_at: now,
-      tags: ['geographic', 'registration-seat'],
+      tags: ['facility', 'operational', 'uk'],
       attributes: {
-        country: 'Estonia',
-        address: 'Viru väljak 4, 10111 Tallinn, Estonia',
-        coordinates: '59.4370° N, 24.7536° E',
+        photo: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=200&auto=format&fit=crop&q=80',
+        address: '10 Downing Street, London SW1A 2AA, United Kingdom',
+        location: '51.503399, -0.127640',
+        country: 'United Kingdom',
+        city: 'London',
       },
-      markdownBody: `# Tallinn, Estonia
+      markdownBody: `# OSINT Operations Center (London HQ)
 
-Registered address seat for legal entity [[ent-company-01]].
+## Location Overview
+Primary coordination center for regional cyber analytics and research telemetry.
+
+> [!TIP]
+> Click the **Map** button next to the address in the attribute table above to launch the interactive OpenStreetMap modal!
+
+## Associated Personnel
+- [[ent-person-01]] is station lead at this facility.
+`,
+    },
+    {
+      id: 'ent-organization-01',
+      type: 'organization',
+      name: 'Shadow Financial Network Ltd',
+      aliases: ['ShadowFin', 'SFN Global'],
+      created_at: now,
+      updated_at: now,
+      tags: ['corporate', 'holding', 'escrow'],
+      attributes: {
+        company_reg: 'OC348912',
+        jurisdiction: 'United Kingdom (Companies House)',
+        website: 'https://shadow-fin.example.com',
+        status: 'Active',
+      },
+      markdownBody: `# Shadow Financial Network Ltd
+
+## Entity Summary
+Financial and technical escrow entity identified during the digital transaction audit.
+
+## Connected Assets
+- Holds and controls escrow vault [[ent-crypto-01]].
+- Operates clearnet redundancy gateway [[ent-domain-01]].
+- Wholly owned subsidiary of [[ent-company-01]].
 `,
     },
     {
       id: 'ent-crypto-01',
       type: 'custom',
-      custom_type: 'Crypto Wallet',
-      name: 'bc1q9e5z7x3y4w2p10a8d6f',
-      aliases: ['Escrow Wallet #4'],
+      custom_type: 'crypto_wallet',
+      name: 'BTC Cold Escrow Vault',
+      aliases: ['Primary Escrow Node', 'Cold Storage Alpha'],
       created_at: now,
       updated_at: now,
-      tags: ['financial', 'bitcoin', 'escrow'],
+      tags: ['blockchain', 'bitcoin', 'escrow'],
       attributes: {
-        asset: 'BTC',
-        total_received: '42.85 BTC',
-        first_tx: '2023-12-01',
+        crypto_wallet: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+        blockchain: 'Bitcoin',
+        balance: '142.50 BTC',
+        first_seen: '2022-11-14',
       },
-      markdownBody: `# bc1q9e5z7x3y4w2p10a8d6f
+      markdownBody: `# BTC Cold Escrow Vault
 
-## Summary
-On-chain Bitcoin address posted on dark web escrow deposit contracts.
+## Wallet Analysis
+Cold storage multi-signature Bitcoin address referenced across historical ledger transactions.
+
+- Source verification: [[src-02]]
+- Controlling entity: [[ent-organization-01]]
 `,
     },
     {
-      id: 'ent-org-01',
-      type: 'organization',
-      name: 'ShadowMesh Syndicate',
-      aliases: ['Mesh Group'],
+      id: 'ent-domain-01',
+      type: 'domain',
+      name: 'secure-drop.osint-preview.net',
+      aliases: ['osint-preview.net'],
       created_at: now,
       updated_at: now,
-      tags: ['threat-actor-group', 'unconfirmed'],
+      tags: ['infrastructure', 'dns', 'gateway'],
       attributes: {
-        alleged_origin: 'Eastern Europe',
-        motive: 'Financial extortion & illicit commerce',
+        domain: 'secure-drop.osint-preview.net',
+        registrar: 'Namecheap Inc.',
+        nameserver: 'ns1.cloudflare.com',
+        ssl_issuer: "Let's Encrypt Authority",
       },
-      markdownBody: `# ShadowMesh Syndicate
+      markdownBody: `# secure-drop.osint-preview.net
 
-Broader cybercrime network suspected of providing initial access broker feeds to NightMarket operators.
+## Infrastructure Details
+Encrypted staging domain used for telemetric reporting and data ingestion pipelines.
+
+- Direct A record resolution: [[ent-ip-01]]
+- Operated by [[ent-organization-01]]
+`,
+    },
+    {
+      id: 'ent-ip-01',
+      type: 'ip',
+      name: '198.51.100.42',
+      aliases: ['gateway-node-04'],
+      created_at: now,
+      updated_at: now,
+      tags: ['network', 'hosting', 'ipv4'],
+      attributes: {
+        ip_address: '198.51.100.42',
+        asn: 'AS13335 Cloudflare Inc.',
+        reverse_dns: 'gateway-node-04.secure-drop.osint-preview.net',
+        country: 'United States',
+      },
+      markdownBody: `# 198.51.100.42
+
+## Network Host
+IPv4 edge node hosting the primary API endpoint for [[ent-domain-01]].
+`,
+    },
+    {
+      id: 'ent-account-01',
+      type: 'account',
+      name: '@cipher_intel_bot',
+      aliases: ['t.me/cipher_intel_bot'],
+      created_at: now,
+      updated_at: now,
+      tags: ['telegram', 'bot', 'automation'],
+      attributes: {
+        platform: 'Telegram',
+        handle: '@cipher_intel_bot',
+        verified: 'true',
+      },
+      markdownBody: `# @cipher_intel_bot
+
+## Telegram Channel Bot
+Automated OSINT broadcast bot managed by [[ent-person-01]].
+`,
+    },
+    {
+      id: 'ent-company-01',
+      type: 'company',
+      name: 'Nordic Security & Intelligence OU',
+      aliases: ['NSI Estonia'],
+      created_at: now,
+      updated_at: now,
+      tags: ['parent-company', 'estonia', 'eu'],
+      attributes: {
+        company_reg: '14920192',
+        registry: 'Estonian e-Business Register',
+        address: 'Narva mnt 5, 10117 Tallinn, Estonia',
+      },
+      markdownBody: `# Nordic Security & Intelligence OU
+
+## Corporate Overview
+Estonian registry entity acting as the corporate parent for [[ent-organization-01]].
 `,
     },
   ];
@@ -212,143 +246,87 @@ Broader cybercrime network suspected of providing initial access broker feeds to
   const relationships: Relationship[] = [
     {
       id: 'rel-01',
-      type: 'operates',
+      type: 'affiliated_with',
+      source_entity: 'ent-person-01',
+      target_entity: 'ent-location-01',
+      directed: true,
+      status: 'confirmed',
+      confidence: 95,
+      created_at: now,
+      evidence: ['src-01'],
+      markdownBody: 'Subject Elena Rostova operates as station chief at the London HQ facility.',
+    },
+    {
+      id: 'rel-02',
+      type: 'manages',
       source_entity: 'ent-person-01',
       target_entity: 'ent-account-01',
       directed: true,
       status: 'confirmed',
-      confidence: 95,
-      evidence: ['src-01'],
-      created_at: now,
-      markdownBody: `# Relationship: operates
-
-## Explanation
-Alexei Morozov controls the Telegram broadcast channel based on administrator username match and PGP key signatures.
-
-## Evidence
-Documented in source [[src-01]].
-`,
-    },
-    {
-      id: 'rel-02',
-      type: 'associated_with',
-      source_entity: 'ent-person-01',
-      target_entity: 'ent-email-01',
-      directed: false,
-      status: 'confirmed',
       confidence: 90,
-      evidence: ['src-03'],
       created_at: now,
-      markdownBody: `# Relationship: associated_with
-
-Email address matches subject's surname and was used in domain registration contact forms.
-`,
+      evidence: ['src-03'],
+      markdownBody: 'Administrator rights for the Telegram bot verified through cryptographic signatures.',
     },
     {
       id: 'rel-03',
-      type: 'registered',
-      source_entity: 'ent-email-01',
-      target_entity: 'ent-domain-01',
+      type: 'investigating',
+      source_entity: 'ent-person-01',
+      target_entity: 'ent-organization-01',
       directed: true,
       status: 'supported',
-      confidence: 85,
-      evidence: ['src-03'],
+      confidence: 88,
       created_at: now,
-      markdownBody: `# Relationship: registered
-
-Historical WHOIS snapshot from November 2023 shows domain \`nightmarket-vault.cc\` registered under \`morozov.ops@proton.me\`.
-`,
+      evidence: ['src-01'],
+      markdownBody: 'Direct investigation target for anomalous fund movements.',
     },
     {
       id: 'rel-04',
+      type: 'owns',
+      source_entity: 'ent-organization-01',
+      target_entity: 'ent-crypto-01',
+      directed: true,
+      status: 'confirmed',
+      confidence: 92,
+      created_at: now,
+      evidence: ['src-02'],
+      markdownBody: 'Corporate charter references multi-signature escrow holding bc1qar0s...',
+    },
+    {
+      id: 'rel-05',
+      type: 'operates',
+      source_entity: 'ent-organization-01',
+      target_entity: 'ent-domain-01',
+      directed: true,
+      status: 'unverified',
+      confidence: 75,
+      created_at: now,
+      evidence: ['src-03'],
+      markdownBody: 'WHOIS billing address correlates with corporate filing address.',
+    },
+    {
+      id: 'rel-06',
       type: 'resolves_to',
       source_entity: 'ent-domain-01',
       target_entity: 'ent-ip-01',
       directed: true,
       status: 'confirmed',
-      confidence: 100,
-      evidence: ['src-04'],
+      confidence: 99,
       created_at: now,
-      markdownBody: `# Relationship: resolves_to
-
-DNS A record verified through passive DNS queries over multiple weeks.
-`,
-    },
-    {
-      id: 'rel-05',
-      type: 'director_of',
-      source_entity: 'ent-person-01',
-      target_entity: 'ent-company-01',
-      directed: true,
-      status: 'confirmed',
-      confidence: 100,
-      evidence: ['src-05'],
-      created_at: now,
-      markdownBody: `# Relationship: director_of
-
-Official registry filing lists Alexei Morozov as sole legal representative and board member.
-`,
-    },
-    {
-      id: 'rel-06',
-      type: 'located_at',
-      source_entity: 'ent-company-01',
-      target_entity: 'ent-location-01',
-      directed: true,
-      status: 'confirmed',
-      confidence: 95,
-      evidence: ['src-05'],
-      created_at: now,
-      markdownBody: `# Relationship: located_at
-
-Company legal registration address is registered in Tallinn, Harju county.
-`,
+      evidence: ['src-03'],
+      markdownBody: 'Active DNS A record resolution verified.',
     },
     {
       id: 'rel-07',
-      type: 'promotes',
-      source_entity: 'ent-account-01',
-      target_entity: 'ent-domain-01',
-      directed: true,
-      status: 'supported',
-      confidence: 80,
-      evidence: ['src-01'],
-      created_at: now,
-      markdownBody: `# Relationship: promotes
-
-Pinned posts on channel @kestrel_dev direct users to \`nightmarket-vault.cc\`.
-`,
-    },
-    {
-      id: 'rel-08',
-      type: 'collaborates_with',
-      source_entity: 'ent-account-01',
-      target_entity: 'ent-org-01',
-      directed: false,
-      status: 'candidate',
-      confidence: 40,
-      evidence: ['src-01'],
-      created_at: now,
-      markdownBody: `# Relationship: collaborates_with
-
-## Explanation
-Candidate relationship based on frequent re-posts of leak announcements from ShadowMesh channels. Needs further evidence before confirmation.
-`,
-    },
-    {
-      id: 'rel-09',
-      type: 'finances',
-      source_entity: 'ent-crypto-01',
+      type: 'subsidiary_of',
+      source_entity: 'ent-organization-01',
       target_entity: 'ent-company-01',
       directed: true,
-      status: 'unverified',
-      confidence: 65,
-      evidence: ['src-02'],
+      status: 'confirmed',
+      confidence: 95,
       created_at: now,
-      markdownBody: `# Relationship: finances
-
-Blockchain analysis shows cluster transactions flowing from escrow address to a crypto card service used by Nordic Cyber Shield OU.
-`,
+      evidence: ['src-01'],
+      markdownBody: 'Companies House filing declares Nordic Security & Intelligence OU as ultimate beneficial owner.',
     },
   ];
 
@@ -356,71 +334,46 @@ Blockchain analysis shows cluster transactions flowing from escrow address to a 
     {
       id: 'src-01',
       type: 'source',
-      title: 'Telegram Broadcast Channel Archive',
-      url: 'https://t.me/kestrel_dev',
+      title: 'Companies House Official Registration Filing',
+      url: 'https://find-and-update.company-information.service.gov.uk/company/OC348912',
       accessed_at: now,
-      source_type: 'social_post',
-      markdownBody: `# Telegram Broadcast Channel Archive
+      source_type: 'registry',
+      markdownBody: `# Companies House Filing Extract
 
-## Extract
-> "NightMarket Clearnet Gateway migrated to \`nightmarket-vault.cc\` with bulletproof redundancy. Verify PGP fingerprint: 4E9B 81A2 DF09 C321 before depositing."
-
-## Notes
-Provides direct link between handle @kestrel_dev, domain, and PGP key.
+## Document Metadata
+- Registration Code: OC348912
+- Legal Jurisdiction: England and Wales
+- Declared Director: Elena Rostova
+- Shareholder: Nordic Security & Intelligence OU
 `,
     },
     {
       id: 'src-02',
       type: 'source',
-      title: 'Blockchain Forensic Graph Report #2024-08',
+      title: 'Blockchain Ledger Transaction Audit',
+      url: 'https://mempool.space/address/bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
       accessed_at: now,
       source_type: 'document',
-      markdownBody: `# Blockchain Forensic Graph Report
+      markdownBody: `# Blockchain Ledger Transaction Audit
 
-## Extract
-Analysis of 42.85 BTC received by \`bc1q9e5z7x3y4w2p10a8d6f\` shows hop outputs interacting with virtual IBAN debit card issuers.
+## On-Chain Verification
+- Target Address: bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq
+- Confirmed UTXOs: 142.50 BTC
+- Correlated escrow transactions signed by operational keys.
 `,
     },
     {
       id: 'src-03',
       type: 'source',
-      title: 'Historical WHOIS Archive Snapshot',
-      url: 'https://whoisology.com/archive/nightmarket-vault.cc',
-      accessed_at: now,
-      source_type: 'registry',
-      markdownBody: `# Historical WHOIS Archive Snapshot
-
-## Extract
-Record for \`nightmarket-vault.cc\` prior to privacy protection enable:
-Registrant Contact: \`morozov.ops@proton.me\`
-Registration date: 2023-11-04
-`,
-    },
-    {
-      id: 'src-04',
-      type: 'source',
-      title: 'DNS Resolution Telemetry',
-      url: 'https://securitytrails.com/domain/nightmarket-vault.cc/dns',
+      title: 'Passive DNS & WHOIS Archival Extract',
+      url: 'https://securitytrails.com/domain/secure-drop.osint-preview.net',
       accessed_at: now,
       source_type: 'webpage',
-      markdownBody: `# DNS Resolution Telemetry
+      markdownBody: `# Passive DNS History
 
-A record persistently points to 185.220.101.45 (FlokiNET AS200052).
-`,
-    },
-    {
-      id: 'src-05',
-      type: 'source',
-      title: 'Estonian Business e-Register Company Record',
-      url: 'https://ariregister.rik.ee/eng/company/16492019',
-      accessed_at: now,
-      source_type: 'registry',
-      markdownBody: `# Estonian Business e-Register Company Record
-
-## Extract
-Company: Nordic Cyber Shield OU (Registry code: 16492019)
-Management Board Member: Alexei Morozov (born 1988)
-Address: Narva mnt, Tallinn, 10120 Harju maakond
+- Target: secure-drop.osint-preview.net
+- Nameservers: Cloudflare
+- Historical A-records matched 198.51.100.42.
 `,
     },
   ];
@@ -429,21 +382,38 @@ Address: Narva mnt, Tallinn, 10120 Harju maakond
     {
       id: 'note-01',
       type: 'note',
-      title: 'Investigation Log & Operational Timeline',
-      tags: ['timeline', 'log'],
+      title: 'Tutorial: Graph Exploration & Physics Controls',
+      tags: ['tutorial', 'graph', 'physics'],
       created_at: now,
       updated_at: now,
-      markdownBody: `# Investigation Log & Operational Timeline
+      markdownBody: `# 🌐 Tutorial: Graph Exploration & Physics Controls
 
-## Phase 1 — Infrastructure Discovery
-1. Monitored dark web forums announcing clearnet redundancy proxy.
-2. Extracted domain \`nightmarket-vault.cc\` and correlated historical DNS and WHOIS records.
-3. Uncovered proton email address associated with Russian national Alexei Morozov.
+This note appears directly as a node on the **Interactive Graph**!
 
-## Phase 2 — Corporate Network Expansion
-1. Queried Estonian e-Residency public business register.
-2. Discovered shell corporate registration *Nordic Cyber Shield OU*.
-3. Next step: trace offshore banking channels and cryptocurrency escrow addresses.
+## How to explore the graph:
+1. Click the **Interactive Graph** tab.
+2. In the top-right toolbar, ensure the **StickyNote** icon is active to see this note.
+3. **Physics in Action**: Drag [[ent-person-01]] or [[ent-location-01]]. Watch other nodes gently push and bounce away from your cursor!
+4. **Layout Switching**: Try switching between **COSE**, **Concentric**, and **Breadthfirst** layout modes from the layout buttons in the graph controls.
+5. **Right-Click Context Menu**: Right-click any node or link to open quick actions (pin tab, link entities, copy ID).
+`,
+    },
+    {
+      id: 'note-02',
+      type: 'note',
+      title: 'Tutorial: Connecting Evidence with Wikilinks',
+      tags: ['tutorial', 'wikilinks', 'evidence'],
+      created_at: now,
+      updated_at: now,
+      markdownBody: `# 🔗 Tutorial: Connecting Evidence with Wikilinks
+
+Trace features automatic bi-directional entity cross-referencing using **Wikilinks syntax**.
+
+## How Wikilinks work:
+Whenever you write notes, reports, or source summaries, simply type \`[[\` followed by the ID or title of an entity:
+
+- For example: [[ent-organization-01]] controls the digital wallet [[ent-crypto-01]].
+- The graph engine automatically scans markdown files for these links and establishes interactive graph edges between your notes and relevant entities!
 `,
     },
   ];
