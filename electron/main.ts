@@ -31,6 +31,8 @@ function sanitizeRelativePath(baseDir: string, targetPath: string): string {
 }
 
 function createWindow() {
+  const iconPath = path.join(__dirname, '../build/icon.png');
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -38,6 +40,7 @@ function createWindow() {
     minHeight: 650,
     backgroundColor: '#141416',
     titleBarStyle: 'hiddenInset',
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -64,6 +67,15 @@ function createWindow() {
 
 app.whenReady().then(() => {
   ensureDirSync(currentWorkspacePath);
+
+  // Set macOS dock icon
+  if (process.platform === 'darwin' && app.dock) {
+    const iconPath = path.join(__dirname, '../build/icon.png');
+    if (fs.existsSync(iconPath)) {
+      app.dock.setIcon(iconPath);
+    }
+  }
+
   setupIpcHandlers();
   createWindow();
 
