@@ -24,18 +24,14 @@ export interface ParsedMarkdown<T = Record<string, any>> {
  * Splits raw markdown into YAML frontmatter object and body content
  */
 export function parseMarkdownFrontmatter(rawContent: string): ParsedMarkdown {
-  const trimmed = rawContent.trimStart();
-  if (!trimmed.startsWith('---')) {
+  // Support both Unix (\n) and Windows (\r\n) newlines, requiring opening delimiter on first line
+  const match = rawContent.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) {
     return { frontmatter: {}, content: rawContent };
   }
 
-  const endOfFrontmatter = trimmed.indexOf('\n---', 3);
-  if (endOfFrontmatter === -1) {
-    return { frontmatter: {}, content: rawContent };
-  }
-
-  const yamlString = trimmed.slice(3, endOfFrontmatter).trim();
-  const content = trimmed.slice(endOfFrontmatter + 4).replace(/^\r?\n/, '');
+  const yamlString = match[1].trim();
+  const content = match[2];
 
   let frontmatter: Record<string, any> = {};
   try {
@@ -289,6 +285,14 @@ export function parseNoteFile(raw: string, fallbackId: string): Note {
   }
 
   const data = validated.data;
+  const extra: Record<string, any> = {};
+  const knownKeys = ['id', 'type', 'title', 'tags', 'created_at', 'updated_at'];
+  for (const [k, v] of Object.entries(frontmatter)) {
+    if (!knownKeys.includes(k)) {
+      extra[k] = v;
+    }
+  }
+
   return {
     id: data.id,
     type: 'note',
@@ -297,6 +301,7 @@ export function parseNoteFile(raw: string, fallbackId: string): Note {
     created_at: data.created_at || now,
     updated_at: data.updated_at || now,
     markdownBody: content,
+    extraFrontmatter: Object.keys(extra).length > 0 ? extra : undefined,
   };
 }
 
@@ -337,6 +342,14 @@ export function parseProjectFile(raw: string, fallbackId: string): Project {
   }
 
   const data = validated.data;
+  const extra: Record<string, any> = {};
+  const knownKeys = ['id', 'type', 'name', 'created_at', 'updated_at'];
+  for (const [k, v] of Object.entries(frontmatter)) {
+    if (!knownKeys.includes(k)) {
+      extra[k] = v;
+    }
+  }
+
   return {
     id: data.id,
     type: 'project',
@@ -344,6 +357,7 @@ export function parseProjectFile(raw: string, fallbackId: string): Project {
     created_at: data.created_at || now,
     updated_at: data.updated_at || now,
     markdownBody: content,
+    extraFrontmatter: Object.keys(extra).length > 0 ? extra : undefined,
   };
 }
 

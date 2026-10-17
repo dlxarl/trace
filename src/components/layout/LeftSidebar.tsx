@@ -11,6 +11,7 @@ import {
 import { EntityIcon, getEntityTypeColor } from '@/components/common/EntityIcon';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { ApiQuickSourceModal } from '@/components/modals/ApiQuickSourceModal';
+import { isSafeUrl } from '@/utils/url';
 import {
   ChevronRight,
   ChevronDown,
@@ -500,7 +501,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         setApiModalQs(qs);
                       } else if (qs.projectId && qs.projectId === activeProjectId) {
                         onOpenTab('source', qs.id.replace('qs-', ''), qs.title, { isPreview: true });
-                      } else if (qs.url) {
+                      } else if (qs.url && isSafeUrl(qs.url)) {
                         window.open(qs.url, '_blank');
                       }
                     }}

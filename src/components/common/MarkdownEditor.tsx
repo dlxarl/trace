@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { isSafeUrl } from '@/utils/url';
 import {
   Bold,
   Italic,
@@ -195,6 +196,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                           {children}
                         </button>
                       );
+                    }
+                    if (!isSafeUrl(href)) {
+                      return <span className="text-obsidian-muted underline decoration-dotted" title="Untrusted link protocol">{children}</span>;
                     }
                     return (
                       <a href={href} target="_blank" rel="noopener noreferrer">

@@ -9,8 +9,10 @@
     "dist-electron/**/*",
     "package.json"
   ],
+  "afterPack": "./build/afterPack.cjs",
   "mac": {
     "icon": "build/icon.icns",
+    "identity": null,
     "target": [
       {
         "target": "dmg",

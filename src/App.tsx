@@ -56,6 +56,10 @@ export function App() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | undefined>(undefined);
+  const activeProjectIdRef = useRef<string | undefined>(activeProjectId);
+  useEffect(() => {
+    activeProjectIdRef.current = activeProjectId;
+  }, [activeProjectId]);
   const [projectData, setProjectData] = useState<ProjectData | null>(null);
   const [graphPositions, setGraphPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -456,21 +460,23 @@ export function App() {
       setLoadingProgress(60);
 
       // Ensure the Getting Started tutorial project exists for everyone
+      const existingActiveId = ws.activeProjectId;
       if (!projs.some((p) => p.id === sample.project.id)) {
         try {
           await storage.createProject(sample.project.name, (sample.project as any).description || '', sample.project.id);
           await storage.saveProject(sample.project);
-          for (const ent of sample.entities) {
-            await storage.saveEntity(sample.project.id, ent);
-          }
-          for (const rel of sample.relationships) {
-            await storage.saveRelationship(sample.project.id, rel);
-          }
-          for (const src of sample.sources) {
-            await storage.saveSource(sample.project.id, src);
-          }
-          for (const note of sample.notes) {
-            await storage.saveNote(sample.project.id, note);
+          await Promise.all([
+            ...sample.entities.map((ent) => storage.saveEntity(sample.project.id, ent)),
+            ...sample.relationships.map((rel) => storage.saveRelationship(sample.project.id, rel)),
+            ...sample.sources.map((src) => storage.saveSource(sample.project.id, src)),
+            ...sample.notes.map((note) => storage.saveNote(sample.project.id, note)),
+          ]);
+          // Restore user's previous active project if they had one
+          if (existingActiveId && existingActiveId !== sample.project.id) {
+            const updatedWs = await storage.getWorkspace();
+            updatedWs.activeProjectId = existingActiveId;
+            await storage.saveWorkspace(updatedWs);
+            ws.activeProjectId = existingActiveId;
           }
         } catch (e) {
           console.warn('Seeding getting-started error:', e);
@@ -537,18 +543,19 @@ export function App() {
 
     // Listen to external/storage changes
     const unsubscribe = storage.onStorageChange((event) => {
-      if (activeProjectId) {
-        storage.getProject(activeProjectId).then((data) => {
+      const currentId = activeProjectIdRef.current;
+      if (currentId) {
+        storage.getProject(currentId).then((data) => {
           if (data) setProjectData(data);
         });
-        storage.listProjects().then(setProjects);
       }
+      storage.listProjects().then(setProjects);
     });
 
     return () => {
       unsubscribe();
     };
-  }, [loadWorkspaceData]);
+  }, [loadWorkspaceData, storage]);
 
   // Global Keyboard shortcuts
   useEffect(() => {
@@ -1019,8 +1026,8 @@ export function App() {
           <div className="absolute bottom-6 flex flex-col items-center text-center space-y-1 select-text">
             <div className="flex items-center space-x-1.5">
               <span className="text-xs font-semibold text-zinc-400">Trace</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'beta0.0.1'}
+              <span className="text-[10px] font-mono text-zinc-500">
+                {__APP_VERSION__}
               </span>
             </div>
             <div className="text-[10px] text-zinc-500 font-mono flex items-center space-x-1 max-w-xs sm:max-w-md truncate">

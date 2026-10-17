@@ -1,7 +1,7 @@
 {
   "name": "trace",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0-alpha.1",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -12,6 +12,7 @@
     "package:mac": "npm run build:electron && electron-builder --mac",
     "package:dir": "npm run build:electron && electron-builder --mac --dir",
     "lint": "oxlint",
+    "test": "npx vitest run",
     "preview": "vite preview"
   },
   "dependencies": {

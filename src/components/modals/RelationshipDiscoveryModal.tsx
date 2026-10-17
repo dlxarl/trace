@@ -112,7 +112,7 @@ export const RelationshipDiscoveryModal: React.FC<RelationshipDiscoveryModalProp
       target_entity: s.targetEntityId,
       type: s.suggestedType,
       status: status, // User requested: 'unverified'
-      confidence: s.confidence / 100,
+      confidence: s.confidence,
       evidence: [s.evidence],
     }));
 

@@ -230,6 +230,40 @@ export const GraphView: React.FC<GraphViewProps> = ({
   } | null>(null);
 
   const sourceNodeInitialPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isInitialFitDoneRef = useRef<boolean>(false);
+  const callbacksRef = useRef<{
+    onSelectEntity: (id: string) => void;
+    onSelectRelationship: (id: string) => void;
+    onOpenEntity: (id: string) => void;
+    onOpenRelationship: (id: string) => void;
+    onOpenNote?: (id: string) => void;
+    focusedNodeId: string | null;
+    clearFocus: () => void;
+  }>({
+    onSelectEntity,
+    onSelectRelationship,
+    onOpenEntity,
+    onOpenRelationship,
+    onOpenNote,
+    focusedNodeId,
+    clearFocus: () => {},
+  });
+
+  useEffect(() => {
+    callbacksRef.current = {
+      onSelectEntity,
+      onSelectRelationship,
+      onOpenEntity,
+      onOpenRelationship,
+      onOpenNote,
+      focusedNodeId,
+      clearFocus,
+    };
+  });
+
+  useEffect(() => {
+    isInitialFitDoneRef.current = false;
+  }, [projectData.project.id]);
 
   // Helper to find target node at mouse position with generous snap hitbox
   const getTargetNodeAtPoint = (
@@ -1066,23 +1100,28 @@ export const GraphView: React.FC<GraphViewProps> = ({
       const dpos = draggedNode.position();
       const repulsionRadius = 110;
 
-      // Apply soft repulsive push to nearby nodes
-      cy.nodes().forEach((other) => {
-        if (other.id() === draggedNode.id()) return;
-        const opos = other.position();
-        const dx = opos.x - dpos.x;
-        const dy = opos.y - dpos.y;
-        const distSq = dx * dx + dy * dy;
+      // Apply soft repulsive push to nearby nodes if graph is reasonably sized
+      const allNodes = cy.nodes();
+      if (allNodes.length <= 250) {
+        allNodes.forEach((other) => {
+          if (other.id() === draggedNode.id()) return;
+          const opos = other.position();
+          const dx = opos.x - dpos.x;
+          if (Math.abs(dx) >= repulsionRadius) return;
+          const dy = opos.y - dpos.y;
+          if (Math.abs(dy) >= repulsionRadius) return;
+          const distSq = dx * dx + dy * dy;
 
-        if (distSq > 0 && distSq < repulsionRadius * repulsionRadius) {
-          const dist = Math.sqrt(distSq);
-          const push = ((repulsionRadius - dist) / repulsionRadius) * 4.5;
-          other.position({
-            x: opos.x + (dx / dist) * push,
-            y: opos.y + (dy / dist) * push,
-          });
-        }
-      });
+          if (distSq > 0 && distSq < repulsionRadius * repulsionRadius) {
+            const dist = Math.sqrt(distSq);
+            const push = ((repulsionRadius - dist) / repulsionRadius) * 4.5;
+            other.position({
+              x: opos.x + (dx / dist) * push,
+              y: opos.y + (dy / dist) * push,
+            });
+          }
+        });
+      }
 
       // Update hover tooltip position if dragging the hovered node
       const container = containerRef.current;
@@ -1147,22 +1186,22 @@ export const GraphView: React.FC<GraphViewProps> = ({
     cy.on('tap', 'node', (evt: EventObject) => {
       const node = evt.target;
       if (!node.data('isNote')) {
-        onSelectEntity(node.id());
+        callbacksRef.current.onSelectEntity(node.id());
       }
       setContextMenu((prev) => ({ ...prev, visible: false }));
     });
 
     cy.on('tap', 'edge', (evt: EventObject) => {
       const edge = evt.target;
-      onSelectRelationship(edge.id());
+      callbacksRef.current.onSelectRelationship(edge.id());
       setContextMenu((prev) => ({ ...prev, visible: false }));
     });
 
     cy.on('tap', (evt: EventObject) => {
       if (evt.target === cy) {
         setContextMenu((prev) => ({ ...prev, visible: false }));
-        if (focusedNodeId) {
-          clearFocus();
+        if (callbacksRef.current.focusedNodeId) {
+          callbacksRef.current.clearFocus();
         }
       }
     });
@@ -1171,15 +1210,15 @@ export const GraphView: React.FC<GraphViewProps> = ({
     cy.on('dbltap', 'node', (evt: EventObject) => {
       const node = evt.target;
       if (node.data('isNote')) {
-        onOpenNote?.(node.id());
+        callbacksRef.current.onOpenNote?.(node.id());
       } else {
-        onOpenEntity(node.id());
+        callbacksRef.current.onOpenEntity(node.id());
       }
     });
 
     cy.on('dbltap', 'edge', (evt: EventObject) => {
       const edge = evt.target;
-      onOpenRelationship(edge.id());
+      callbacksRef.current.onOpenRelationship(edge.id());
     });
 
     // Custom Context menu handlers
@@ -1295,9 +1334,10 @@ export const GraphView: React.FC<GraphViewProps> = ({
     const hasPreset = elements.some((el) => el.group === 'nodes' && el.position);
     if (!hasPreset && elements.length > 0) {
       runLayout(layoutName);
-    } else {
+    } else if (!isInitialFitDoneRef.current && elements.length > 0) {
       try {
         cy.fit(undefined, 40);
+        isInitialFitDoneRef.current = true;
       } catch (e) {}
     }
   }, [elements]);
@@ -1470,7 +1510,9 @@ export const GraphView: React.FC<GraphViewProps> = ({
     const cy = cyRef.current;
     if (!cy || !onSavePositions) return;
 
-    const positions: Record<string, { x: number; y: number }> = {};
+    const positions: Record<string, { x: number; y: number }> = {
+      ...(initialPositions || {}),
+    };
     cy.nodes().forEach((node) => {
       const pos = node.position();
       positions[node.id()] = { x: Math.round(pos.x), y: Math.round(pos.y) };

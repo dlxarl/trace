@@ -18,6 +18,7 @@ import {
   Layers,
   HelpCircle,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react';
 
 interface RelationshipEditorProps {
@@ -187,6 +188,12 @@ export const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
                   <span>Inspect {sourceEntity.name}</span>
                 </button>
               )}
+              {!sourceEntity && draft.source_entity && (
+                <div className="flex items-center space-x-1.5 text-[11px] text-rose-400 bg-rose-950/40 border border-rose-900/50 px-2 py-1 rounded">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Missing endpoint: entity "{draft.source_entity}" not found</span>
+                </div>
+              )}
             </div>
 
             {/* Relationship Type / Verb */}
@@ -250,6 +257,12 @@ export const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
                   <EntityIcon type={targetEntity.type} className="w-3 h-3" />
                   <span>Inspect {targetEntity.name}</span>
                 </button>
+              )}
+              {!targetEntity && draft.target_entity && (
+                <div className="flex items-center space-x-1.5 text-[11px] text-rose-400 bg-rose-950/40 border border-rose-900/50 px-2 py-1 rounded">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Missing endpoint: entity "{draft.target_entity}" not found</span>
+                </div>
               )}
             </div>
           </div>
@@ -382,6 +395,27 @@ export const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
                 </div>
               );
             })}
+
+            {draft.evidence
+              .filter((id) => !projectData.sources.some((s) => s.id === id))
+              .map((missingId) => (
+                <div
+                  key={missingId}
+                  className="flex items-center justify-between p-2.5 rounded border border-rose-900/60 bg-rose-950/20"
+                >
+                  <div className="flex items-center space-x-2 text-rose-300 text-xs">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-400" />
+                    <span>Missing source reference: <code className="font-mono text-[11px] bg-rose-950/60 px-1 py-0.5 rounded">{missingId}</code></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleEvidenceSource(missingId)}
+                    className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline"
+                  >
+                    Remove reference
+                  </button>
+                </div>
+              ))}
 
             {projectData.sources.length === 0 && (
               <p className="text-xs text-obsidian-dim italic py-2">

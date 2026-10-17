@@ -36,16 +36,36 @@ function normalizeDigits(val: string): string {
   return val.replace(/[^\d]/g, '');
 }
 
+const SLAVIC_SURNAME_REGEX = /(?:енко|ук|юк|чук|ський|ська|ов|ова|єв|єва|ін|іна|ич|enko|uk|yuk|chuk|sky|skyi|ska|ski|ov|ova|ev|eva|in|ina|wicz|icz)$/i;
+
 function extractSurnames(name: string): string[] {
   const parts = name.trim().split(/\s+/).filter((p) => p.length >= 3);
-  if (parts.length === 0) return [];
-  // In Ukrainian/Western naming conventions: either first word or last word is the surname
+  if (parts.length < 2) return [];
   const candidates = new Set<string>();
-  candidates.add(parts[0].toLowerCase());
-  if (parts.length > 1) {
-    candidates.add(parts[parts.length - 1].toLowerCase());
+
+  // Last word is standard surname in Western naming: "John Smith" -> "Smith"
+  const last = parts[parts.length - 1].toLowerCase();
+  candidates.add(last);
+
+  // First word is only considered if it matches a surname suffix (e.g. "Шевченко Тарас")
+  const first = parts[0].toLowerCase();
+  if (SLAVIC_SURNAME_REGEX.test(first)) {
+    candidates.add(first);
   }
+
   return Array.from(candidates);
+}
+
+function matchesNameWord(text: string, name: string): boolean {
+  if (!text || !name || name.length < 3) return false;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  try {
+    const regex = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'iu');
+    return regex.test(text);
+  } catch {
+    const regex = new RegExp(`(?:^|[^a-zA-Z0-9А-Яа-яЇїІіЄєҐґ])${escaped}(?:$|[^a-zA-Z0-9А-Яа-яЇїІіЄєҐґ])`, 'i');
+    return regex.test(text);
+  }
 }
 
 function extractEmailDomain(email: string): string | null {
@@ -55,6 +75,16 @@ function extractEmailDomain(email: string): string | null {
   }
   return null;
 }
+
+const isPhoneField = (k: string) => {
+  const l = k.toLowerCase();
+  return l.includes('phone') || l.includes('tel') || l.includes('mobile');
+};
+
+const isIpField = (k: string) => {
+  const l = k.toLowerCase();
+  return l === 'ip' || l.includes('ip_address') || l === 'host';
+};
 
 export function discoverRelationships(
   entities: Entity[],
@@ -120,16 +150,12 @@ export function discoverRelationships(
         if (valA === null || valA === undefined || valA === '') continue;
         const strA = String(valA).trim();
 
-        // 2. Phone matching
-        if (
-          keyA.toLowerCase().includes('phone') ||
-          keyA.toLowerCase().includes('tel') ||
-          keyA.toLowerCase().includes('mobile')
-        ) {
+        // 2. Phone matching (both fields must be phone attributes)
+        if (isPhoneField(keyA)) {
           const digitsA = normalizeDigits(strA);
           if (digitsA.length >= 9) {
             for (const [keyB, valB] of Object.entries(attrsB)) {
-              if (!valB) continue;
+              if (!valB || !isPhoneField(keyB)) continue;
               const digitsB = normalizeDigits(String(valB));
               if (digitsB.length >= 9 && digitsA === digitsB) {
                 addSuggestion({
@@ -198,10 +224,10 @@ export function discoverRelationships(
           }
         }
 
-        // 4. IP address matching
-        if (keyA.toLowerCase() === 'ip' || keyA.toLowerCase().includes('ip_address') || keyA.toLowerCase() === 'host') {
+        // 4. IP address matching (both fields must be IP attributes)
+        if (isIpField(keyA)) {
           for (const [keyB, valB] of Object.entries(attrsB)) {
-            if (!valB) continue;
+            if (!valB || !isIpField(keyB)) continue;
             const strB = String(valB).trim();
             if (strA === strB && strA.length >= 7) {
               addSuggestion({
@@ -311,9 +337,9 @@ export function discoverRelationships(
       }
 
       // 8. Mentions in attributes: if entity A's name is mentioned in entity B's attributes
-      if (a.name.length >= 4) {
+      if (a.name.length >= 3) {
         for (const [keyB, valB] of Object.entries(attrsB)) {
-          if (valB && typeof valB === 'string' && valB.toLowerCase().includes(a.name.toLowerCase())) {
+          if (valB && typeof valB === 'string' && matchesNameWord(valB, a.name)) {
             addSuggestion({
               id: `sug-mention-${a.id}-${b.id}`,
               sourceEntityId: a.id,
@@ -332,9 +358,9 @@ export function discoverRelationships(
           }
         }
       }
-      if (b.name.length >= 4) {
+      if (b.name.length >= 3) {
         for (const [keyA, valA] of Object.entries(attrsA)) {
-          if (valA && typeof valA === 'string' && valA.toLowerCase().includes(b.name.toLowerCase())) {
+          if (valA && typeof valA === 'string' && matchesNameWord(valA, b.name)) {
             addSuggestion({
               id: `sug-mention-${b.id}-${a.id}`,
               sourceEntityId: b.id,

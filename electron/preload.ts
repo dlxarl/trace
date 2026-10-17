@@ -83,4 +83,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     headers?: Record<string, string>;
     body?: string;
   }) => ipcRenderer.invoke('net:request', req),
+
+  // App version
+  getVersion: () => ipcRenderer.invoke('app:getVersion'),
 });

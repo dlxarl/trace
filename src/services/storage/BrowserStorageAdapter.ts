@@ -214,10 +214,10 @@ export class BrowserStorageAdapter implements IStorageService {
 
     // Switch active project
     const ws = await this.getWorkspace();
-    ws.activeProjectId = id;
+    ws.activeProjectId = projectId;
     await this.saveWorkspace(ws);
 
-    this.notifyListeners({ type: 'create', targetType: 'project', targetId: id });
+    this.notifyListeners({ type: 'create', targetType: 'project', targetId: projectId });
     return project;
   }
 
@@ -277,12 +277,20 @@ export class BrowserStorageAdapter implements IStorageService {
 
     data.entities = data.entities.filter((e) => e.id !== entityId);
     // Also remove cascade relationships connected to this entity
-    data.relationships = data.relationships.filter(
-      (r) => r.source_entity !== entityId && r.target_entity !== entityId
-    );
+    const removedRelIds: string[] = [];
+    data.relationships = data.relationships.filter((r) => {
+      if (r.source_entity === entityId || r.target_entity === entityId) {
+        removedRelIds.push(r.id);
+        return false;
+      }
+      return true;
+    });
 
     this.saveProjectDataToStorage(data);
     sqliteIndexService.removeDoc(entityId);
+    for (const relId of removedRelIds) {
+      sqliteIndexService.removeDoc(relId);
+    }
     this.notifyListeners({ type: 'delete', targetType: 'entity', targetId: entityId });
   }
 
@@ -334,12 +342,19 @@ export class BrowserStorageAdapter implements IStorageService {
 
     data.sources = data.sources.filter((s) => s.id !== sourceId);
     // Remove references to this source in relationships
+    const touchedRels: Relationship[] = [];
     data.relationships.forEach((rel) => {
-      rel.evidence = rel.evidence.filter((e) => e !== sourceId);
+      if (rel.evidence.includes(sourceId)) {
+        rel.evidence = rel.evidence.filter((e) => e !== sourceId);
+        touchedRels.push(rel);
+      }
     });
 
     this.saveProjectDataToStorage(data);
     sqliteIndexService.removeDoc(sourceId);
+    for (const rel of touchedRels) {
+      sqliteIndexService.indexRelationship(projectId, rel);
+    }
     this.notifyListeners({ type: 'delete', targetType: 'source', targetId: sourceId });
   }
 

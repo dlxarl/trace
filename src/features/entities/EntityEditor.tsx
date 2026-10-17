@@ -104,7 +104,9 @@ export const EntityEditor: React.FC<EntityEditorProps> = ({
   };
 
   const handleSave = () => {
-    onSave(draft);
+    const trimmedName = draft.name.trim();
+    if (!trimmedName) return;
+    onSave({ ...draft, name: trimmedName });
     setIsDirty(false);
     onDirtyChange?.(false);
   };
@@ -295,9 +297,9 @@ export const EntityEditor: React.FC<EntityEditorProps> = ({
           <button
             type="button"
             onClick={handleSave}
-            disabled={!isDirty}
+            disabled={!isDirty || !draft.name.trim()}
             className={`px-3 py-1.5 flex items-center space-x-1.5 text-xs rounded-lg font-medium transition-colors ${
-              isDirty
+              isDirty && draft.name.trim()
                 ? 'bg-obsidian-accent hover:bg-obsidian-accentHover text-white shadow-sm'
                 : 'bg-obsidian-card text-obsidian-dim cursor-not-allowed border border-obsidian-border'
             }`}
@@ -404,8 +406,16 @@ export const EntityEditor: React.FC<EntityEditorProps> = ({
                 type="text"
                 value={draft.name}
                 onChange={(e) => updateDraft({ name: e.target.value })}
-                className="w-full px-3 py-1.5 bg-[#141416] border border-obsidian-border rounded-lg text-sm text-obsidian-text focus:outline-none focus:border-obsidian-accent"
+                placeholder="Enter entity name..."
+                className={`w-full px-3 py-1.5 bg-[#141416] border rounded-lg text-sm text-obsidian-text focus:outline-none ${
+                  !draft.name.trim()
+                    ? 'border-rose-500/80 focus:border-rose-500'
+                    : 'border-obsidian-border focus:border-obsidian-accent'
+                }`}
               />
+              {!draft.name.trim() && (
+                <p className="text-[11px] text-rose-400 mt-1">Name is required and cannot be empty.</p>
+              )}
             </div>
 
             {/* Entity Type */}

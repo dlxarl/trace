@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { QuickSource, Entity } from '@/types';
+import { safeUrlPathname } from '@/utils/url';
 import {
   Send,
   X,
@@ -204,7 +205,7 @@ export const ApiQuickSourceModal: React.FC<ApiQuickSourceModalProps> = ({
 
     try {
       if (linkMode === 'source' && onAttachSourceToEntity) {
-        const sourceTitle = `${quickSource.title}: ${method} ${new URL(url).pathname || url}`;
+        const sourceTitle = `${quickSource.title}: ${method} ${safeUrlPathname(url)}`;
         await onAttachSourceToEntity(
           targetEntity.id,
           sourceTitle,

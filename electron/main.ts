@@ -7,12 +7,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
-
-const configPath = path.join(app.getPath('userData'), 'trace-config.json');
+let configPath = '';
+let currentWorkspacePath = '';
 
 function loadConfig(): { workspacePath?: string } {
   try {
-    if (fs.existsSync(configPath)) {
+    if (configPath && fs.existsSync(configPath)) {
       return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     }
   } catch {}
@@ -20,6 +20,7 @@ function loadConfig(): { workspacePath?: string } {
 }
 
 function saveConfig(cfg: { workspacePath?: string }) {
+  if (!configPath) return;
   try {
     ensureDirSync(path.dirname(configPath));
     atomicWriteFileSync(configPath, JSON.stringify(cfg, null, 2));
@@ -27,25 +28,6 @@ function saveConfig(cfg: { workspacePath?: string }) {
     console.error('Failed to save config:', err);
   }
 }
-
-// Default folder: ~/Documents/trace
-const defaultTracePath = path.join(app.getPath('documents'), 'trace');
-const legacyTracePath = path.join(app.getPath('documents'), 'Trace-OSINT-Workspace');
-
-// Migrate legacy 'Trace-OSINT-Workspace' to 'trace' if needed
-if (!fs.existsSync(defaultTracePath) && fs.existsSync(legacyTracePath)) {
-  try {
-    fs.renameSync(legacyTracePath, defaultTracePath);
-  } catch (err) {
-    console.error('Failed to migrate legacy directory to trace:', err);
-  }
-}
-
-const initialConfig = loadConfig();
-let currentWorkspacePath =
-  initialConfig.workspacePath && fs.existsSync(initialConfig.workspacePath)
-    ? initialConfig.workspacePath
-    : defaultTracePath;
 
 function ensureDirSync(dirPath: string) {
   if (!fs.existsSync(dirPath)) {
@@ -61,11 +43,30 @@ function atomicWriteFileSync(filePath: string, data: string | Buffer) {
 }
 
 function sanitizeRelativePath(baseDir: string, targetPath: string): string {
+  const baseResolved = path.resolve(baseDir);
   const resolved = path.resolve(baseDir, targetPath);
-  if (!resolved.startsWith(path.resolve(baseDir))) {
+  if (resolved !== baseResolved && !resolved.startsWith(baseResolved + path.sep)) {
     throw new Error('Access denied: path traversal detected');
   }
   return resolved;
+}
+
+function getProjectDir(projectId: string): string {
+  if (
+    !projectId ||
+    typeof projectId !== 'string' ||
+    !/^[a-zA-Z0-9_\-\.]+$/.test(projectId) ||
+    projectId === '.' ||
+    projectId === '..'
+  ) {
+    throw new Error('Access denied: invalid project identifier');
+  }
+  const projectsDir = path.resolve(currentWorkspacePath, 'projects');
+  const projDir = path.resolve(projectsDir, projectId);
+  if (projDir !== projectsDir && !projDir.startsWith(projectsDir + path.sep)) {
+    throw new Error('Access denied: path traversal detected');
+  }
+  return projDir;
 }
 
 function createWindow() {
@@ -123,6 +124,25 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  configPath = path.join(app.getPath('userData'), 'trace-config.json');
+  const defaultTracePath = path.join(app.getPath('documents'), 'trace');
+  const legacyTracePath = path.join(app.getPath('documents'), 'Trace-OSINT-Workspace');
+
+  // Migrate legacy 'Trace-OSINT-Workspace' to 'trace' if needed
+  try {
+    if (!fs.existsSync(defaultTracePath) && fs.existsSync(legacyTracePath)) {
+      fs.renameSync(legacyTracePath, defaultTracePath);
+    }
+  } catch (err) {
+    console.error('Failed to migrate legacy directory to trace:', err);
+  }
+
+  const initialConfig = loadConfig();
+  currentWorkspacePath =
+    initialConfig.workspacePath && fs.existsSync(initialConfig.workspacePath)
+      ? initialConfig.workspacePath
+      : defaultTracePath;
+
   ensureDirSync(currentWorkspacePath);
 
   // Set macOS dock icon in development (in packaged app Info.plist sets icon.icns)
@@ -286,7 +306,7 @@ function setupIpcHandlers() {
 
   // Projects: Get
   ipcMain.handle('projects:get', async (_, id: string) => {
-    const projDir = sanitizeRelativePath(path.join(currentWorkspacePath, 'projects'), id);
+    const projDir = getProjectDir(id);
     const projFile = path.join(projDir, 'project.md');
     if (!fs.existsSync(projFile)) return null;
 
@@ -316,7 +336,7 @@ function setupIpcHandlers() {
   // Projects: Create
   ipcMain.handle('projects:create', async (_, { name, description, id }) => {
     const slug = id || (name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `proj-${Date.now()}`);
-    const projDir = sanitizeRelativePath(path.join(currentWorkspacePath, 'projects'), slug);
+    const projDir = getProjectDir(slug);
     ensureDirSync(projDir);
     ensureDirSync(path.join(projDir, 'entities'));
     ensureDirSync(path.join(projDir, 'relationships'));
@@ -342,7 +362,7 @@ function setupIpcHandlers() {
     const idMatch = raw.match(/^id:\s*["']?([^"'\n\r]+)["']?/m);
     if (!idMatch) return;
     const projectId = idMatch[1].trim();
-    const projDir = sanitizeRelativePath(path.join(currentWorkspacePath, 'projects'), projectId);
+    const projDir = getProjectDir(projectId);
     ensureDirSync(projDir);
     const filePath = path.join(projDir, 'project.md');
     atomicWriteFileSync(filePath, raw);
@@ -350,7 +370,7 @@ function setupIpcHandlers() {
 
   // Projects: Delete
   ipcMain.handle('projects:delete', async (_, id: string) => {
-    const projDir = sanitizeRelativePath(path.join(currentWorkspacePath, 'projects'), id);
+    const projDir = getProjectDir(id);
     if (fs.existsSync(projDir)) {
       fs.rmSync(projDir, { recursive: true, force: true });
     }
@@ -359,7 +379,7 @@ function setupIpcHandlers() {
   // Entities: Save
   ipcMain.handle('entities:save', async (_, { projectId, entityId, raw }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'entities'),
+      path.join(getProjectDir(projectId), 'entities'),
       `${entityId}.md`
     );
     atomicWriteFileSync(filePath, raw);
@@ -367,19 +387,45 @@ function setupIpcHandlers() {
 
   // Entities: Delete
   ipcMain.handle('entities:delete', async (_, { projectId, entityId }) => {
+    const projDir = getProjectDir(projectId);
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'entities'),
+      path.join(projDir, 'entities'),
       `${entityId}.md`
     );
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
+
+    // Cascade delete connected relationships on disk to prevent dangling references
+    const relsDir = path.join(projDir, 'relationships');
+    const removedRelIds: string[] = [];
+    if (fs.existsSync(relsDir)) {
+      const files = fs.readdirSync(relsDir).filter((f) => f.endsWith('.md'));
+      for (const f of files) {
+        try {
+          const relPath = path.join(relsDir, f);
+          const raw = fs.readFileSync(relPath, 'utf-8');
+          if (
+            raw.includes(`source_entity: "${entityId}"`) ||
+            raw.includes(`source_entity: '${entityId}'`) ||
+            raw.includes(`target_entity: "${entityId}"`) ||
+            raw.includes(`target_entity: '${entityId}'`) ||
+            raw.includes(`source_entity: ${entityId}`) ||
+            raw.includes(`target_entity: ${entityId}`)
+          ) {
+            fs.unlinkSync(relPath);
+            removedRelIds.push(f.replace('.md', ''));
+          }
+        } catch {}
+      }
+    }
+    return { removedRelIds };
   });
 
   // Relationships: Save
   ipcMain.handle('relationships:save', async (_, { projectId, relId, raw }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'relationships'),
+      path.join(getProjectDir(projectId), 'relationships'),
       `${relId}.md`
     );
     atomicWriteFileSync(filePath, raw);
@@ -388,7 +434,7 @@ function setupIpcHandlers() {
   // Relationships: Delete
   ipcMain.handle('relationships:delete', async (_, { projectId, relId }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'relationships'),
+      path.join(getProjectDir(projectId), 'relationships'),
       `${relId}.md`
     );
     if (fs.existsSync(filePath)) {
@@ -399,7 +445,7 @@ function setupIpcHandlers() {
   // Sources: Save
   ipcMain.handle('sources:save', async (_, { projectId, sourceId, raw }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'sources'),
+      path.join(getProjectDir(projectId), 'sources'),
       `${sourceId}.md`
     );
     atomicWriteFileSync(filePath, raw);
@@ -408,7 +454,7 @@ function setupIpcHandlers() {
   // Sources: Delete
   ipcMain.handle('sources:delete', async (_, { projectId, sourceId }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'sources'),
+      path.join(getProjectDir(projectId), 'sources'),
       `${sourceId}.md`
     );
     if (fs.existsSync(filePath)) {
@@ -419,7 +465,7 @@ function setupIpcHandlers() {
   // Notes: Save
   ipcMain.handle('notes:save', async (_, { projectId, noteId, raw }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'notes'),
+      path.join(getProjectDir(projectId), 'notes'),
       `${noteId}.md`
     );
     atomicWriteFileSync(filePath, raw);
@@ -428,7 +474,7 @@ function setupIpcHandlers() {
   // Notes: Delete
   ipcMain.handle('notes:delete', async (_, { projectId, noteId }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId, 'notes'),
+      path.join(getProjectDir(projectId), 'notes'),
       `${noteId}.md`
     );
     if (fs.existsSync(filePath)) {
@@ -439,7 +485,7 @@ function setupIpcHandlers() {
   // Graph Layout: Get & Save
   ipcMain.handle('graph:getLayout', async (_, projectId: string) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId),
+      getProjectDir(projectId),
       'graph-layout.json'
     );
     if (fs.existsSync(filePath)) {
@@ -452,7 +498,7 @@ function setupIpcHandlers() {
 
   ipcMain.handle('graph:saveLayout', async (_, { projectId, layout }) => {
     const filePath = sanitizeRelativePath(
-      path.join(currentWorkspacePath, 'projects', projectId),
+      getProjectDir(projectId),
       'graph-layout.json'
     );
     atomicWriteFileSync(filePath, JSON.stringify(layout, null, 2));
@@ -462,7 +508,7 @@ function setupIpcHandlers() {
   ipcMain.handle('workspace:openInExplorer', async (_, projectId?: string) => {
     let targetPath = currentWorkspacePath;
     if (projectId) {
-      const projDir = path.join(currentWorkspacePath, 'projects', projectId);
+      const projDir = getProjectDir(projectId);
       ensureDirSync(projDir);
       targetPath = projDir;
     } else {
@@ -475,6 +521,7 @@ function setupIpcHandlers() {
   // Window State & Platform
   ipcMain.handle('window:isFullScreen', () => mainWindow?.isFullScreen() || false);
   ipcMain.handle('app:getPlatform', () => process.platform);
+  ipcMain.handle('app:getVersion', () => app.getVersion());
 
   // Network Request (Proxy to bypass CORS for API Quick Sources)
   ipcMain.handle('net:request', async (_, req: {
@@ -485,6 +532,10 @@ function setupIpcHandlers() {
   }) => {
     const startTime = Date.now();
     try {
+      const parsedUrl = new URL(req.url);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        throw new Error('Only HTTP and HTTPS protocols are permitted');
+      }
       const isBodyAllowed = req.method && !['GET', 'HEAD'].includes(req.method.toUpperCase());
       const response = await fetch(req.url, {
         method: req.method || 'GET',

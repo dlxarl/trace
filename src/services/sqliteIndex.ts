@@ -38,8 +38,14 @@ class SqliteIndexService {
         if (typeof initFn === 'function') {
           this.SQL = await initFn({
             locateFile: (file: string) => {
-              if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+              if (typeof window !== 'undefined' && window.location?.protocol === 'file:') {
                 return `./${file}`;
+              }
+              if (typeof window === 'undefined') {
+                try {
+                  // In Node.js / test environment
+                  return `./node_modules/sql.js/dist/${file}`;
+                } catch {}
               }
               return `/${file}`;
             },
@@ -155,6 +161,13 @@ class SqliteIndexService {
       }
     }
 
+    // Clear old docs for this project in fallbackDocs
+    for (const [key, doc] of this.fallbackDocs.entries()) {
+      if (doc.project_id === projectId) {
+        this.fallbackDocs.delete(key);
+      }
+    }
+
     // Also populate fallbackDocs
     this.fallbackDocs.set(projectId, {
       doc_id: projectId,
@@ -184,10 +197,12 @@ class SqliteIndexService {
   }
 
   public indexEntity(projectId: string, ent: Entity) {
-    const attributesStr = Object.entries(ent.attributes)
-      .map(([k, v]) => `${k}: ${v}`)
+    const attributesStr = Object.entries(ent.attributes || {})
+      .map(([k, v]) => `${k}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : v}`)
       .join(' ');
-    const fullContent = `${ent.aliases.join(' ')} ${attributesStr} ${ent.markdownBody}`;
+    const aliasesStr = (ent.aliases || []).join(' ');
+    const tagsStr = (ent.tags || []).join(' ');
+    const fullContent = `${aliasesStr} ${attributesStr} ${ent.markdownBody || ''}`;
 
     if (this.db) {
       try {
@@ -199,9 +214,9 @@ class SqliteIndexService {
             projectId,
             ent.type,
             ent.name,
-            JSON.stringify(ent.aliases),
-            JSON.stringify(ent.attributes),
-            JSON.stringify(ent.tags),
+            JSON.stringify(ent.aliases || []),
+            JSON.stringify(ent.attributes || {}),
+            JSON.stringify(ent.tags || []),
             ent.updated_at,
           ]
         );
@@ -214,9 +229,9 @@ class SqliteIndexService {
             projectId,
             'entity',
             ent.name,
-            `Entity (${ent.type})${ent.aliases.length > 0 ? ` • Alias: ${ent.aliases[0]}` : ''}`,
+            `Entity (${ent.type})${ent.aliases && ent.aliases.length > 0 ? ` • Alias: ${ent.aliases[0]}` : ''}`,
             fullContent,
-            ent.tags.join(' '),
+            tagsStr,
           ]
         );
       } catch (e) {
@@ -229,9 +244,9 @@ class SqliteIndexService {
       project_id: projectId,
       doc_type: 'entity',
       title: ent.name,
-      subtitle: `Entity (${ent.type})${ent.aliases.length > 0 ? ` • Alias: ${ent.aliases[0]}` : ''}`,
+      subtitle: `Entity (${ent.type})${ent.aliases && ent.aliases.length > 0 ? ` • Alias: ${ent.aliases[0]}` : ''}`,
       content: fullContent,
-      tags_str: ent.tags.join(' '),
+      tags_str: tagsStr,
     });
   }
 

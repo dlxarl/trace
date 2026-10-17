@@ -265,14 +265,16 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               <div className="p-2 bg-[#141416] border border-obsidian-border rounded text-[11px] space-y-1">
                 <div className="truncate">
                   <span className="text-obsidian-dim">Source: </span>
-                  <span className="text-obsidian-text font-medium">
+                  <span className={`font-medium ${projectData.entities.some((e) => e.id === selectedRel.source_entity) ? 'text-obsidian-text' : 'text-rose-400'}`}>
                     {getEntityName(selectedRel.source_entity)}
+                    {!projectData.entities.some((e) => e.id === selectedRel.source_entity) && ' (Missing)'}
                   </span>
                 </div>
                 <div className="truncate">
                   <span className="text-obsidian-dim">Target: </span>
-                  <span className="text-obsidian-text font-medium">
+                  <span className={`font-medium ${projectData.entities.some((e) => e.id === selectedRel.target_entity) ? 'text-obsidian-text' : 'text-rose-400'}`}>
                     {getEntityName(selectedRel.target_entity)}
+                    {!projectData.entities.some((e) => e.id === selectedRel.target_entity) && ' (Missing)'}
                   </span>
                 </div>
                 {selectedRel.confidence !== null && selectedRel.confidence !== undefined && (
@@ -305,13 +307,17 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                       <div
                         key={srcId}
                         onClick={() => onOpenSource(srcId)}
-                        className="p-1.5 px-2 bg-[#141416] hover:bg-obsidian-hover border border-obsidian-border rounded cursor-pointer transition-colors"
+                        className={`p-1.5 px-2 rounded cursor-pointer transition-colors border ${
+                          src
+                            ? 'bg-[#141416] hover:bg-obsidian-hover border-obsidian-border'
+                            : 'bg-rose-950/20 border-rose-900/40 text-rose-300'
+                        }`}
                       >
-                        <div className="text-[11px] font-medium text-obsidian-text truncate">
-                          {src ? src.title : srcId}
+                        <div className="text-[11px] font-medium truncate">
+                          {src ? src.title : `${srcId} (Source missing)`}
                         </div>
                         <div className="text-[10px] text-obsidian-dim font-mono">
-                          {src?.source_type} {src?.url ? `• ${src.url}` : ''}
+                          {src ? `${src.source_type}${src.url ? ` • ${src.url}` : ''}` : 'Document not found in project'}
                         </div>
                       </div>
                     );

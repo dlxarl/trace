@@ -319,8 +319,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="flex flex-col select-text min-w-0 pr-4">
             <div className="flex items-center space-x-1.5">
               <span className="text-xs font-semibold text-zinc-300">Trace</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'beta0.0.1'}
+              <span className="text-[10px] font-mono text-zinc-500">
+                {__APP_VERSION__}
               </span>
             </div>
             <div className="text-[10px] text-zinc-500 font-mono mt-0.5 flex items-center space-x-1 truncate max-w-sm sm:max-w-md">

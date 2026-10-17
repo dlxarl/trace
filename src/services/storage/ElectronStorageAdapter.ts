@@ -45,7 +45,7 @@ declare global {
       saveProject: (raw: string) => Promise<void>;
       deleteProject: (id: string) => Promise<void>;
       saveEntity: (projectId: string, entityId: string, raw: string) => Promise<void>;
-      deleteEntity: (projectId: string, entityId: string) => Promise<void>;
+      deleteEntity: (projectId: string, entityId: string) => Promise<{ removedRelIds?: string[] } | void>;
       saveRelationship: (projectId: string, relId: string, raw: string) => Promise<void>;
       deleteRelationship: (projectId: string, relId: string) => Promise<void>;
       saveSource: (projectId: string, sourceId: string, raw: string) => Promise<void>;
@@ -71,6 +71,7 @@ declare global {
         error?: string;
         durationMs?: number;
       }>;
+      getVersion?: () => Promise<string>;
     };
   }
 }
@@ -147,8 +148,13 @@ export class ElectronStorageAdapter implements IStorageService {
   }
 
   async deleteEntity(projectId: string, entityId: string): Promise<void> {
-    await this.api.deleteEntity(projectId, entityId);
+    const res = await this.api.deleteEntity(projectId, entityId);
     sqliteIndexService.removeDoc(entityId);
+    if (res?.removedRelIds && Array.isArray(res.removedRelIds)) {
+      for (const relId of res.removedRelIds) {
+        sqliteIndexService.removeDoc(relId);
+      }
+    }
   }
 
   async saveRelationship(projectId: string, rel: Relationship): Promise<void> {

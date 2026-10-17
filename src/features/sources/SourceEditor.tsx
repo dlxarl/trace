@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ProjectData, Source, SOURCE_TYPES, SourceType } from '@/types';
 import { MarkdownEditor } from '@/components/common/MarkdownEditor';
 import { StatusBadge } from '@/components/common/StatusBadge';
+import { isSafeUrl } from '@/utils/url';
 import {
   Save,
   Trash2,
@@ -97,7 +98,7 @@ export const SourceEditor: React.FC<SourceEditorProps> = ({
             </button>
           )}
 
-          {draft.url && (
+          {draft.url && isSafeUrl(draft.url) && (
             <a
               href={draft.url}
               target="_blank"
