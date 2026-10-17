@@ -96,11 +96,11 @@ export const ProjectOverview: React.FC<ProjectOverviewProps> = ({
                 <button
                   type="button"
                   onClick={onOpenInExplorer}
-                  className="px-3.5 py-1.5 flex items-center space-x-1.5 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-md font-medium transition-colors"
-                  title="Open Project Folder in Finder / File Explorer"
+                  className="px-3.5 py-1.5 flex items-center space-x-1.5 text-xs bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 rounded-md font-medium transition-colors"
+                  title="Open project folder in macOS Finder"
                 >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                  <span>Open Folder</span>
+                  <FolderOpen className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>Show in Finder</span>
                 </button>
               )}
 

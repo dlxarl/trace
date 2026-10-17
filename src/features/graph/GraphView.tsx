@@ -295,8 +295,9 @@ export const GraphView: React.FC<GraphViewProps> = ({
     if (showNotesOnGraph && projectData.notes) {
       projectData.notes.forEach((note) => {
         if (!activeNodeIds.has(note.id)) return;
-        const matches = Array.from(note.markdownBody.matchAll(/\[\[(.*?)\]\]/g));
-        matches.forEach((m, idx) => {
+        const noteBody = note.markdownBody || (note as any).raw || '';
+        const matches = Array.from(noteBody.matchAll(/\[\[(.*?)\]\]/g));
+        matches.forEach((m: any, idx) => {
           const targetNameOrId = m[1].trim();
           const targetEntity = projectData.entities.find(
             (e) => e.id === targetNameOrId || e.name.toLowerCase() === targetNameOrId.toLowerCase()

@@ -25,6 +25,9 @@ interface RightSidebarProps {
   onOpenRelationship: (relId: string) => void;
   onOpenSource: (sourceId: string) => void;
   onCreateRelationship: (sourceId: string) => void;
+  width?: number;
+  onResize?: (width: number) => void;
+  onResetWidth?: () => void;
 }
 
 export const RightSidebar: React.FC<RightSidebarProps> = ({
@@ -37,21 +40,34 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   onOpenRelationship,
   onOpenSource,
   onCreateRelationship,
+  width = 320,
+  onResize,
+  onResetWidth,
 }) => {
-  if (!isOpen) {
-    return (
-      <div className="w-8 bg-obsidian-sidebar border-l border-obsidian-border flex flex-col items-center py-3 select-none">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="p-1 text-obsidian-dim hover:text-white hover:bg-obsidian-hover rounded transition-colors"
-          title="Expand Right Inspector (Ctrl/Cmd + ])"
-        >
-          <ChevronRight className="w-4 h-4 rotate-180" />
-        </button>
-      </div>
-    );
-  }
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = startX - moveEvent.clientX; // dragging to the left increases width
+      onResize?.(startWidth + deltaX);
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  if (!isOpen) return null;
 
   const selectedEntity = selectedEntityId
     ? projectData.entities.find((e) => e.id === selectedEntityId)
@@ -67,9 +83,22 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   };
 
   return (
-    <aside className="w-72 bg-obsidian-sidebar border-l border-obsidian-border flex flex-col h-full overflow-hidden select-none text-xs">
+    <aside
+      style={{ width: `${width}px` }}
+      className="bg-obsidian-sidebar border-l border-obsidian-border flex flex-col h-full overflow-hidden select-none text-xs relative shrink-0"
+    >
+      {/* Left Edge Resize Handle */}
+      <div
+        onMouseDown={handleMouseDownResize}
+        onDoubleClick={onResetWidth}
+        className="absolute top-0 left-0 w-1.5 h-full cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-40 group"
+        title="Drag to resize inspector (double-click to reset)"
+      >
+        <div className="w-[1px] h-full mx-auto bg-transparent group-hover:bg-indigo-400 group-active:bg-indigo-400" />
+      </div>
+
       {/* Top Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-obsidian-border bg-[#18181b]">
+      <div className="h-8 flex items-center justify-between px-3 border-b border-obsidian-border bg-[#18181b] shrink-0">
         <span className="font-semibold text-obsidian-text uppercase tracking-wider text-[11px] flex items-center space-x-1.5">
           <Info className="w-3.5 h-3.5 text-obsidian-muted" />
           <span>Inspector</span>
@@ -77,8 +106,8 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
         <button
           type="button"
           onClick={onToggle}
-          className="p-1 text-obsidian-dim hover:text-white hover:bg-obsidian-hover rounded"
-          title="Collapse Panel"
+          className="p-1 text-obsidian-dim hover:text-white hover:bg-obsidian-hover rounded transition-colors"
+          title="Collapse Panel (Ctrl/Cmd + ])"
         >
           <ChevronRight className="w-4 h-4" />
         </button>

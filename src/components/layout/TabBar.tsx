@@ -93,7 +93,10 @@ export const TabBar: React.FC<TabBarProps> = ({
   const currentContextTab = tabs.find((t) => t.id === tabContextMenu?.tabId);
 
   return (
-    <div className="h-9 bg-[#111114] border-b border-obsidian-border flex items-center px-2 space-x-1 select-none overflow-x-auto relative">
+    <div
+      className="h-full flex items-center space-x-1 select-none overflow-x-auto relative flex-1 min-w-0"
+      style={{ WebkitAppRegion: 'drag' as any }}
+    >
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId;
         const isPreview = tab.isPreview && !tab.isPinned;
@@ -104,12 +107,13 @@ export const TabBar: React.FC<TabBarProps> = ({
             onClick={() => onSelectTab(tab.id)}
             onDoubleClick={() => onTogglePinTab?.(tab.id)}
             onContextMenu={(e) => handleContextMenu(e, tab.id)}
-            className={`group h-7 px-2.5 rounded-t-md flex items-center space-x-1.5 text-xs cursor-pointer border-t-2 transition-all duration-150 shrink-0 ${
+            style={{ WebkitAppRegion: 'no-drag' as any }}
+            className={`group h-7 px-2.5 rounded-lg flex items-center space-x-1.5 text-xs cursor-pointer border transition-all duration-150 shrink-0 ${
               tab.isPinned ? 'max-w-[140px]' : 'max-w-[210px]'
             } ${
               isActive
-                ? 'bg-obsidian-panel border-obsidian-accent text-white font-medium'
-                : 'border-transparent text-obsidian-dim hover:text-obsidian-muted hover:bg-[#18181c]'
+                ? 'bg-[#1e1e28] border-white/10 text-white font-medium shadow-xs'
+                : 'border-transparent text-obsidian-dim hover:text-white hover:bg-white/5'
             } ${isPreview ? 'italic' : ''}`}
             title={`${tab.title}${isPreview ? ' (Preview - double-click to pin)' : tab.isPinned ? ' (Pinned)' : ''}`}
           >
@@ -145,6 +149,7 @@ export const TabBar: React.FC<TabBarProps> = ({
       <button
         type="button"
         onClick={onNewTab}
+        style={{ WebkitAppRegion: 'no-drag' as any }}
         className="p-1 text-obsidian-dim hover:text-white hover:bg-[#18181c] rounded transition-colors duration-150"
         title="Open New Tab (Graph)"
       >
@@ -159,6 +164,7 @@ export const TabBar: React.FC<TabBarProps> = ({
           style={{
             top: `${Math.min(tabContextMenu.y, window.innerHeight - 180)}px`,
             left: `${Math.min(tabContextMenu.x, window.innerWidth - 200)}px`,
+            WebkitAppRegion: 'no-drag' as any,
           }}
         >
           <button

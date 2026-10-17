@@ -59,6 +59,9 @@ interface LeftSidebarProps {
   onOpenInExplorer?: (projectId?: string) => void;
   onOpenSettings?: () => void;
   onOpenShortcuts?: () => void;
+  width?: number;
+  onResize?: (width: number) => void;
+  onResetWidth?: () => void;
 }
 
 interface SidebarContextMenuState {
@@ -98,8 +101,12 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onOpenInExplorer,
   onOpenSettings,
   onOpenShortcuts,
+  width = 280,
+  onResize,
+  onResetWidth,
 }) => {
   // Collapsible sections
+  const currentProject = projects.find((p) => p.id === activeProjectId);
   const [entitiesOpen, setEntitiesOpen] = useState<boolean>(true);
   const [relationshipsOpen, setRelationshipsOpen] = useState<boolean>(true);
   const [sourcesOpen, setSourcesOpen] = useState<boolean>(true);
@@ -165,133 +172,44 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     return () => window.removeEventListener('pointerdown', handleOutsideClick);
   }, [projectSelectorOpen]);
 
-  const isCollapsed = !isOpen;
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width;
 
-  if (isCollapsed) {
-    return (
-      <div className="w-12 bg-obsidian-sidebar border-r border-obsidian-border flex flex-col items-center py-3 select-none">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="p-1.5 text-obsidian-dim hover:text-white hover:bg-obsidian-hover rounded-lg transition-colors"
-          title="Expand Left Sidebar (Ctrl/Cmd + [)"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-    );
-  }
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      onResize?.(startWidth + deltaX);
+    };
 
-  const currentProject = projects.find((p) => p.id === activeProjectId);
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <aside className="w-64 bg-obsidian-sidebar border-r border-obsidian-border flex flex-col h-full overflow-hidden select-none text-xs relative">
-      {/* Project Switcher Selector & Collapse Button */}
-      <div className="p-2 border-b border-obsidian-border bg-[#161619] relative flex items-center gap-1.5">
-        <button
-          type="button"
-          data-project-button
-          onClick={() => setProjectSelectorOpen(!projectSelectorOpen)}
-          className="flex-1 p-1.5 px-2 bg-[#1b1b20] hover:bg-obsidian-hover border border-obsidian-border rounded-lg flex items-center justify-between text-left transition-colors"
-        >
-          <div className="flex items-center space-x-2 truncate min-w-0">
-            <FolderKanban className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-            <span className="font-medium text-obsidian-text truncate text-xs">
-              {currentProject ? currentProject.name : 'Select Project'}
-            </span>
-          </div>
-          <ChevronDown className="w-3.5 h-3.5 text-obsidian-dim shrink-0 ml-1" />
-        </button>
-
-        <button
-          type="button"
-          onClick={onToggle}
-          className="p-1.5 text-obsidian-dim hover:text-white hover:bg-obsidian-hover border border-obsidian-border/60 rounded-lg transition-colors shrink-0"
-          title="Collapse Sidebar"
-        >
-          <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-        </button>
-
-        {/* Project Switcher Dropdown */}
-        {projectSelectorOpen && (
-          <div
-            data-project-selector
-            className="absolute top-11 left-2 right-2 z-50 bg-[#16161d] border border-obsidian-border rounded-xl shadow-2xl p-1.5 space-y-1.5 animate-in fade-in zoom-in-95 duration-100 ring-1 ring-white/10"
-          >
-            <div className="flex items-center justify-between px-2 pt-1 pb-0.5">
-              <span className="text-[10px] font-semibold text-obsidian-muted uppercase tracking-wider">
-                Investigation Projects
-              </span>
-              <span className="text-[10px] text-obsidian-dim font-mono">{projects.length}</span>
-            </div>
-
-            <div className="max-h-52 overflow-y-auto space-y-1 pr-0.5">
-              {projects.map((p) => {
-                const isActive = p.id === activeProjectId;
-                return (
-                  <div
-                    key={p.id}
-                    onClick={() => {
-                      onSelectProject(p.id);
-                      setProjectSelectorOpen(false);
-                    }}
-                    className={`group px-2.5 py-2 rounded-lg flex items-center justify-between cursor-pointer transition-all border ${
-                      isActive
-                        ? 'bg-indigo-600/20 border-indigo-500/40 text-white shadow-sm'
-                        : 'bg-transparent border-transparent hover:bg-white/[0.04] hover:border-white/10 text-obsidian-text'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-2 min-w-0 mr-2 flex-1">
-                      <FolderKanban
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          isActive ? 'text-indigo-400' : 'text-obsidian-dim group-hover:text-obsidian-text'
-                        }`}
-                      />
-                      <span className={`truncate text-xs ${isActive ? 'font-medium text-white' : 'text-zinc-300'}`}>
-                        {p.name}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-1.5 shrink-0">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-black/40 text-zinc-400 whitespace-nowrap border border-white/5">
-                        {p.entityCount} ent
-                      </span>
-                      {isActive && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="border-t border-obsidian-border pt-1.5 flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setProjectSelectorOpen(false);
-                  onCreateProjectModal();
-                }}
-                className="flex-1 px-2 py-1.5 text-left text-indigo-300 hover:text-white hover:bg-indigo-600/20 rounded-lg flex items-center space-x-1.5 text-xs font-medium transition-colors border border-transparent hover:border-indigo-500/30"
-              >
-                <Plus className="w-3.5 h-3.5 shrink-0" />
-                <span className="truncate">New Investigation Project</span>
-              </button>
-
-              {onOpenInExplorer && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setProjectSelectorOpen(false);
-                    onOpenInExplorer(activeProjectId);
-                  }}
-                  title={isDesktop ? 'Open in Finder / File Explorer' : 'Download Project ZIP'}
-                  className="p-1.5 text-obsidian-dim hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/10 shrink-0"
-                >
-                  <FolderOpen className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-        )}
+    <aside
+      style={{ width: `${width}px` }}
+      className="bg-obsidian-sidebar border-r border-obsidian-border flex flex-col h-full overflow-hidden select-none text-xs relative shrink-0"
+    >
+      {/* Right Edge Resize Handle */}
+      <div
+        onMouseDown={handleMouseDownResize}
+        onDoubleClick={onResetWidth}
+        className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-40 group"
+        title="Drag to resize sidebar (double-click to reset)"
+      >
+        <div className="w-[1px] h-full mx-auto bg-transparent group-hover:bg-indigo-400 group-active:bg-indigo-400" />
       </div>
 
       {/* Main Navigation Views */}
@@ -558,7 +476,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
               type="button"
               onClick={() => onOpenInExplorer(activeProjectId)}
               className="p-1.5 hover:text-indigo-300 hover:bg-white/10 rounded-lg transition-colors"
-              title={isDesktop ? 'Open in Finder / Explorer' : 'Download Project Files'}
+              title={isDesktop ? 'Show in Finder' : 'Download Project Files'}
             >
               <FolderOpen className="w-3.5 h-3.5" />
             </button>

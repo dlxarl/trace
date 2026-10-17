@@ -37,7 +37,12 @@ class SqliteIndexService {
 
         if (typeof initFn === 'function') {
           this.SQL = await initFn({
-            locateFile: (file: string) => `/${file}`,
+            locateFile: (file: string) => {
+              if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+                return `./${file}`;
+              }
+              return `/${file}`;
+            },
           });
 
           if (savedBinary && savedBinary.length > 0) {

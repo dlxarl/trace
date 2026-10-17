@@ -33,6 +33,15 @@ import { CommandPaletteModal } from '@/components/modals/CommandPaletteModal';
 import { ShortcutsModal } from '@/components/modals/ShortcutsModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { createSampleProject } from '@/services/storage/sampleData';
+import {
+  PanelLeft,
+  PanelRight,
+  FolderKanban,
+  FolderOpen,
+  ChevronDown,
+  Plus,
+  Check,
+} from 'lucide-react';
 import saveAs from 'file-saver';
 
 export function App() {
@@ -49,6 +58,28 @@ export function App() {
   // Layout Panels State
   const [leftSidebarOpen, setLeftSidebarOpen] = useState<boolean>(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState<boolean>(true);
+
+  // Sidebar Widths State (persisted in localStorage)
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('trace_sidebar_left_width');
+    return saved ? Math.max(220, Math.min(600, parseInt(saved, 10))) : 280;
+  });
+  const [rightSidebarWidth, setRightSidebarWidth] = useState<number>(() => {
+    const saved = localStorage.getItem('trace_sidebar_right_width');
+    return saved ? Math.max(240, Math.min(650, parseInt(saved, 10))) : 320;
+  });
+
+  const handleLeftResize = (newWidth: number) => {
+    const clamped = Math.max(220, Math.min(600, newWidth));
+    setLeftSidebarWidth(clamped);
+    localStorage.setItem('trace_sidebar_left_width', clamped.toString());
+  };
+
+  const handleRightResize = (newWidth: number) => {
+    const clamped = Math.max(240, Math.min(650, newWidth));
+    setRightSidebarWidth(clamped);
+    localStorage.setItem('trace_sidebar_right_width', clamped.toString());
+  };
 
   // Tabs State
   const [tabs, setTabs] = useState<Tab[]>([
@@ -102,13 +133,28 @@ export function App() {
     try {
       const opened = await storage.openInExplorer(targetId);
       if (opened) {
-        showToast(storage.isDesktop() ? 'Opening in File Explorer / Finder...' : 'Downloaded project archive (.zip)');
+        showToast(storage.isDesktop() ? 'Opening in Finder...' : 'Downloaded project archive (.zip)');
       }
     } catch (e) {
       console.error('Failed to open folder:', e);
       showToast('Could not open folder on disk');
     }
   };
+
+  // Project Switcher Dropdown State
+  const [projectSelectorOpen, setProjectSelectorOpen] = useState<boolean>(false);
+  const projectSelectorRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!projectSelectorOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (projectSelectorRef.current && !projectSelectorRef.current.contains(e.target as Node)) {
+        setProjectSelectorOpen(false);
+      }
+    };
+    window.addEventListener('pointerdown', handleOutsideClick);
+    return () => window.removeEventListener('pointerdown', handleOutsideClick);
+  }, [projectSelectorOpen]);
 
   // Hidden File input ref for ZIP import
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -126,7 +172,7 @@ export function App() {
       // Ensure the Getting Started tutorial project exists for everyone
       if (!projs.some((p) => p.id === sample.project.id)) {
         try {
-          await storage.createProject(sample.project.name);
+          await storage.createProject(sample.project.name, (sample.project as any).description || '', sample.project.id);
           await storage.saveProject(sample.project);
           for (const ent of sample.entities) {
             await storage.saveEntity(sample.project.id, ent);
@@ -593,10 +639,11 @@ export function App() {
     }
   };
 
+  const currentProject = projects.find((p) => p.id === activeProjectId);
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
       {/* Hidden File Input for ZIP Import */}
       <input
         ref={fileInputRef}
@@ -606,81 +653,135 @@ export function App() {
         className="hidden"
       />
 
-      {/* Left Sidebar */}
-      {workspace && (
-        <LeftSidebar
-          isOpen={leftSidebarOpen}
-          onToggle={() => setLeftSidebarOpen(!leftSidebarOpen)}
-          workspace={workspace}
-          projects={projects}
-          activeProjectId={activeProjectId}
-          projectData={projectData}
-          onSelectProject={handleSelectProject}
-          onCreateProjectModal={() => setProjectModalOpen(true)}
-          onDeleteProject={handleDeleteProject}
-          activeTabType={activeTab?.type}
-          activeTargetId={activeTab?.targetId}
-          onOpenTab={openTab}
-          onCreateEntityModal={(defaultType) => {
-            setEntityModalDefaultType(defaultType);
-            setEntityModalOpen(true);
-          }}
-          onCreateRelationshipModal={(sourceId) => {
-            setRelModalDefaultSource(sourceId);
-            setRelModalOpen(true);
-          }}
-          onCreateSourceModal={() => {
-            if (!activeProjectId) return;
-            const now = new Date().toISOString();
-            const newSource: Source = {
-              id: `src-${Date.now().toString(36)}`,
-              type: 'source',
-              title: 'New Evidence Source',
-              accessed_at: now,
-              source_type: 'webpage',
-              markdownBody: '# New Source\n\n## Extract\n\nRecord excerpt...\n\n## Notes\n\nNotes...',
-            };
-            storage.saveSource(activeProjectId, newSource).then(async () => {
-              const updated = await storage.getProject(activeProjectId);
-              setProjectData(updated);
-              openTab('source', newSource.id, newSource.title);
-            });
-          }}
-          onCreateNoteModal={() => {
-            if (!activeProjectId) return;
-            const now = new Date().toISOString();
-            const newNote: Note = {
-              id: `note-${Date.now().toString(36)}`,
-              type: 'note',
-              title: 'Investigation Note',
-              tags: [],
-              created_at: now,
-              updated_at: now,
-              markdownBody: '# Investigation Note\n\nRecord observations...',
-            };
-            storage.saveNote(activeProjectId, newNote).then(async () => {
-              const updated = await storage.getProject(activeProjectId);
-              setProjectData(updated);
-              openTab('note', newNote.id, newNote.title);
-            });
-          }}
-          onExportZip={handleExportZip}
-          onImportZip={() => fileInputRef.current?.click()}
-          onRebuildIndex={handleRebuildIndex}
-          onDeleteEntity={handleDeleteEntity}
-          onDeleteRelationship={handleDeleteRelationship}
-          onDeleteSource={handleDeleteSource}
-          onDeleteNote={handleDeleteNote}
-          isDesktop={storage.isDesktop()}
-          onOpenInExplorer={handleOpenInExplorer}
-          onOpenSettings={() => setSettingsModalOpen(true)}
-          onOpenShortcuts={() => setShortcutsModalOpen(true)}
-        />
-      )}
+      {/* Unified Top Header Bar (Obsidian-Style) */}
+      <header
+        className="h-9.5 bg-[#121215] border-b border-obsidian-border flex items-center px-2 select-none shrink-0 z-30"
+        style={{ WebkitAppRegion: 'drag' as any }}
+      >
+        {/* macOS Traffic Lights Spacer - Always fixed 74px safe zone */}
+        <div className="w-[74px] shrink-0 pointer-events-none" />
 
-      {/* Center Main Workspace */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-obsidian-panel min-w-0">
-        {/* Tab Bar */}
+        {/* Left Sidebar Toggle Button (PanelLeft icon, like Obsidian!) */}
+        <button
+          type="button"
+          onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+          style={{ WebkitAppRegion: 'no-drag' as any }}
+          className={`p-1.5 rounded-lg transition-colors mr-1.5 shrink-0 ${
+            leftSidebarOpen
+              ? 'text-indigo-400 bg-indigo-500/15'
+              : 'text-obsidian-dim hover:text-white hover:bg-white/10'
+          }`}
+          title={leftSidebarOpen ? 'Collapse Left Sidebar (Ctrl/Cmd + [)' : 'Expand Left Sidebar (Ctrl/Cmd + [)'}
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
+
+        {/* Project Switcher Dropdown Button */}
+        <div ref={projectSelectorRef} className="relative shrink-0" style={{ WebkitAppRegion: 'no-drag' as any }}>
+          <button
+            type="button"
+            onClick={() => setProjectSelectorOpen(!projectSelectorOpen)}
+            className="h-7 px-2.5 bg-[#18181f] hover:bg-[#22222b] border border-obsidian-border hover:border-indigo-500/40 rounded-lg flex items-center space-x-2 text-left transition-colors max-w-[280px] group shadow-xs"
+            title={currentProject?.name}
+          >
+            <FolderKanban className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+            <span className="text-xs font-medium text-white truncate">
+              {currentProject ? currentProject.name : 'Select Project'}
+            </span>
+            <ChevronDown
+              className={`w-3 h-3 text-obsidian-dim group-hover:text-white shrink-0 transition-transform duration-150 ${
+                projectSelectorOpen ? 'rotate-180 text-indigo-400' : ''
+              }`}
+            />
+          </button>
+
+          {/* Project Switcher Dropdown */}
+          {projectSelectorOpen && (
+            <div
+              className="absolute top-full left-0 mt-1.5 w-72 z-50 bg-[#16161d] border border-obsidian-border rounded-xl shadow-2xl p-1.5 space-y-1 ring-1 ring-white/10 animate-in fade-in zoom-in-95 duration-100"
+            >
+              <div className="flex items-center justify-between px-2 pt-1 pb-1">
+                <span className="text-[10px] font-semibold text-obsidian-muted uppercase tracking-wider">
+                  Projects
+                </span>
+                <span className="text-[10px] text-obsidian-dim font-mono">{projects.length}</span>
+              </div>
+
+              <div className="max-h-56 overflow-y-auto space-y-0.5">
+                {projects.map((p) => {
+                  const isActive = p.id === activeProjectId;
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => {
+                        handleSelectProject(p.id);
+                        setProjectSelectorOpen(false);
+                      }}
+                      className={`px-2.5 py-1.5 rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                        isActive
+                          ? 'bg-indigo-600/20 text-white font-medium border border-indigo-500/30'
+                          : 'hover:bg-white/5 text-zinc-300 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2 min-w-0 flex-1 mr-2">
+                        <FolderKanban
+                          className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-indigo-400' : 'text-zinc-500'}`}
+                        />
+                        <span className="truncate text-xs">{p.name}</span>
+                      </div>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className="text-[10px] font-mono text-zinc-500">{p.entityCount} ent</span>
+                        {isActive && <Check className="w-3.5 h-3.5 text-indigo-400 shrink-0" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="border-t border-obsidian-border pt-1 mt-1 space-y-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProjectSelectorOpen(false);
+                    handleOpenInExplorer(activeProjectId);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-left text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg flex items-center space-x-2 text-xs transition-colors"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span>Show in Finder</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProjectSelectorOpen(false);
+                    setProjectModalOpen(true);
+                  }}
+                  className="w-full px-2.5 py-1.5 text-left text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg flex items-center space-x-2 text-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 shrink-0" />
+                  <span>New Project...</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Quick "Show in Finder" Button */}
+        <button
+          type="button"
+          onClick={() => handleOpenInExplorer()}
+          style={{ WebkitAppRegion: 'no-drag' as any }}
+          className="p-1.5 text-obsidian-dim hover:text-indigo-300 hover:bg-indigo-500/10 rounded-lg transition-colors ml-1 shrink-0"
+          title="Show in Finder"
+        >
+          <FolderOpen className="w-4 h-4" />
+        </button>
+
+        {/* Vertical Divider */}
+        <div className="h-4 w-[1px] bg-obsidian-border mx-2 shrink-0 pointer-events-none" />
+
+        {/* Tab Bar in Top Header */}
         <TabBar
           tabs={tabs}
           activeTabId={activeTabId}
@@ -692,7 +793,104 @@ export function App() {
           onCloseTabsToRight={closeTabsToRight}
         />
 
-        {/* Tab Content Canvas */}
+        {/* Right Sidebar Inspector Toggle */}
+        {projectData && (
+          <button
+            type="button"
+            onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
+            style={{ WebkitAppRegion: 'no-drag' as any }}
+            className={`p-1.5 rounded-lg transition-colors ml-1 shrink-0 ${
+              rightSidebarOpen
+                ? 'text-indigo-400 bg-indigo-500/15'
+                : 'text-obsidian-dim hover:text-white hover:bg-white/10'
+            }`}
+            title={rightSidebarOpen ? 'Collapse Inspector (Ctrl/Cmd + ])' : 'Expand Inspector (Ctrl/Cmd + ])'}
+          >
+            <PanelRight className="w-4 h-4" />
+          </button>
+        )}
+      </header>
+
+      {/* Main Body Below Top Header */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Left Sidebar */}
+        {leftSidebarOpen && workspace && (
+          <LeftSidebar
+            isOpen={leftSidebarOpen}
+            onToggle={() => setLeftSidebarOpen(!leftSidebarOpen)}
+            workspace={workspace}
+            projects={projects}
+            activeProjectId={activeProjectId}
+            projectData={projectData}
+            onSelectProject={handleSelectProject}
+            onCreateProjectModal={() => setProjectModalOpen(true)}
+            onDeleteProject={handleDeleteProject}
+            activeTabType={activeTab?.type}
+            activeTargetId={activeTab?.targetId}
+            onOpenTab={openTab}
+            onCreateEntityModal={(defaultType) => {
+              setEntityModalDefaultType(defaultType);
+              setEntityModalOpen(true);
+            }}
+            onCreateRelationshipModal={(sourceId) => {
+              setRelModalDefaultSource(sourceId);
+              setRelModalOpen(true);
+            }}
+            onCreateSourceModal={() => {
+              if (!activeProjectId) return;
+              const now = new Date().toISOString();
+              const newSource: Source = {
+                id: `src-${Date.now().toString(36)}`,
+                type: 'source',
+                title: 'New Evidence Source',
+                accessed_at: now,
+                source_type: 'webpage',
+                markdownBody: '# New Source\n\n## Extract\n\nRecord excerpt...\n\n## Notes\n\nNotes...',
+              };
+              storage.saveSource(activeProjectId, newSource).then(async () => {
+                const updated = await storage.getProject(activeProjectId);
+                setProjectData(updated);
+                openTab('source', newSource.id, newSource.title);
+              });
+            }}
+            onCreateNoteModal={() => {
+              if (!activeProjectId) return;
+              const now = new Date().toISOString();
+              const newNote: Note = {
+                id: `note-${Date.now().toString(36)}`,
+                type: 'note',
+                title: 'Investigation Note',
+                tags: [],
+                created_at: now,
+                updated_at: now,
+                markdownBody: '# Investigation Note\n\nRecord observations...',
+              };
+              storage.saveNote(activeProjectId, newNote).then(async () => {
+                const updated = await storage.getProject(activeProjectId);
+                setProjectData(updated);
+                openTab('note', newNote.id, newNote.title);
+              });
+            }}
+            onExportZip={handleExportZip}
+            onImportZip={() => fileInputRef.current?.click()}
+            onRebuildIndex={handleRebuildIndex}
+            onDeleteEntity={handleDeleteEntity}
+            onDeleteRelationship={handleDeleteRelationship}
+            onDeleteSource={handleDeleteSource}
+            onDeleteNote={handleDeleteNote}
+            isDesktop={storage.isDesktop()}
+            onOpenInExplorer={handleOpenInExplorer}
+            onOpenSettings={() => setSettingsModalOpen(true)}
+            onOpenShortcuts={() => setShortcutsModalOpen(true)}
+            width={leftSidebarWidth}
+            onResize={handleLeftResize}
+            onResetWidth={() => handleLeftResize(280)}
+          />
+        )}
+
+        {/* Center Main Workspace */}
+        <main className="flex-1 flex flex-col h-full overflow-hidden bg-obsidian-panel min-w-0">
+          {/* Tab Content Canvas */}
         <div className="flex-1 overflow-hidden relative">
           {isLoading && (
             <div className="absolute inset-0 bg-[#141416]/80 backdrop-blur z-20 flex flex-col items-center justify-center text-xs text-obsidian-muted gap-2.5">
@@ -946,8 +1144,12 @@ export function App() {
             setRelModalDefaultSource(sourceId);
             setRelModalOpen(true);
           }}
+          width={rightSidebarWidth}
+          onResize={handleRightResize}
+          onResetWidth={() => handleRightResize(320)}
         />
       )}
+      </div>
 
       {/* Modals */}
       <NewEntityModal

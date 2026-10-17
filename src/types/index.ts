@@ -1,4 +1,16 @@
 import { z } from 'zod';
+import type React from 'react';
+
+declare module 'react' {
+  interface CSSProperties {
+    WebkitAppRegion?: 'drag' | 'no-drag';
+  }
+}
+
+declare global {
+  const __APP_VERSION__: string;
+  const __BUILD_HASH__: string;
+}
 
 export type EntityType =
   | 'person'

@@ -5,12 +5,14 @@ import { IStorageService } from './IStorageService';
 let storageInstance: IStorageService | null = null;
 
 export function getStorageService(): IStorageService {
-  if (!storageInstance) {
-    if (typeof window !== 'undefined' && window.electronAPI) {
+  if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    if (!(storageInstance instanceof ElectronStorageAdapter)) {
       storageInstance = new ElectronStorageAdapter();
-    } else {
-      storageInstance = new BrowserStorageAdapter();
     }
+    return storageInstance;
+  }
+  if (!storageInstance) {
+    storageInstance = new BrowserStorageAdapter();
   }
   return storageInstance;
 }

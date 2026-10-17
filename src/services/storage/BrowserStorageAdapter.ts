@@ -187,13 +187,13 @@ export class BrowserStorageAdapter implements IStorageService {
     return summaries.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
   }
 
-  async createProject(name: string, description?: string): Promise<Project> {
+  async createProject(name: string, description?: string, id?: string): Promise<Project> {
     await this.ensureInitialized();
     const now = new Date().toISOString();
-    const id = `project-${Date.now().toString(36)}`;
+    const projectId = id || `project-${Date.now().toString(36)}`;
 
     const project: Project = {
-      id,
+      id: projectId,
       type: 'project',
       name,
       created_at: now,

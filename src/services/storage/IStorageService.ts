@@ -19,7 +19,7 @@ export interface IStorageService {
   
   // Projects
   listProjects(): Promise<ProjectSummary[]>;
-  createProject(name: string, description?: string): Promise<Project>;
+  createProject(name: string, description?: string, id?: string): Promise<Project>;
   getProject(id: string): Promise<ProjectData | null>;
   saveProject(project: Project): Promise<void>;
   deleteProject(id: string): Promise<void>;

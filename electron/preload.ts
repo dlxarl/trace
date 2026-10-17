@@ -8,8 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWorkspace: () => ipcRenderer.invoke('workspace:get'),
   saveWorkspace: (ws: any) => ipcRenderer.invoke('workspace:save', ws),
   listProjects: () => ipcRenderer.invoke('projects:list'),
-  createProject: (name: string, description?: string) =>
-    ipcRenderer.invoke('projects:create', { name, description }),
+  createProject: (name: string, description?: string, id?: string) =>
+    ipcRenderer.invoke('projects:create', { name, description, id }),
   getProject: (id: string) => ipcRenderer.invoke('projects:get', id),
   saveProject: (raw: string) => ipcRenderer.invoke('projects:save', raw),
   deleteProject: (id: string) => ipcRenderer.invoke('projects:delete', id),

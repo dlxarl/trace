@@ -136,8 +136,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClick={() => onOpenInExplorer(activeProjectId)}
                     className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center space-x-1.5 text-xs font-medium transition-all shadow-sm"
                   >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    <span>{isDesktop ? 'Open in Finder / Explorer' : 'Download Project ZIP'}</span>
+                    <FolderOpen className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>{isDesktop ? 'Show in Finder' : 'Download Project ZIP'}</span>
                   </button>
                 )}
               </div>
@@ -290,10 +290,38 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Version & Build Info */}
+          <div className="pt-4 border-t border-white/5 flex flex-col items-center justify-center text-center space-y-1 py-1">
+            <div className="text-xs font-medium text-zinc-300 flex items-center space-x-1.5">
+              <span>Trace</span>
+              <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'beta0.0.1'}
+              </span>
+            </div>
+            <div className="text-[11px] font-mono text-zinc-500">
+              Build hash: <span className="text-zinc-400 font-mono select-all font-semibold">#{typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}</span>
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3 border-t border-obsidian-border bg-[#141419]/60 flex items-center justify-end">
+        <div className="px-5 py-3 border-t border-obsidian-border bg-[#141419]/80 flex items-center justify-between">
+          <div className="flex flex-col select-text">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-xs font-semibold text-zinc-300">Trace</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'beta0.0.1'}
+              </span>
+            </div>
+            <div className="text-[10px] text-zinc-500 font-mono mt-0.5 flex items-center space-x-1">
+              <span>build</span>
+              <span className="text-zinc-400 select-all font-mono">
+                #{typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}
+              </span>
+            </div>
+          </div>
+
           <button
             type="button"
             onClick={onClose}

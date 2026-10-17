@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell, nativeImage } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -40,12 +40,13 @@ function createWindow() {
     minHeight: 650,
     backgroundColor: '#141416',
     titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 14, y: 12 },
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true,
+      sandbox: false,
     },
   });
 
@@ -68,11 +69,16 @@ function createWindow() {
 app.whenReady().then(() => {
   ensureDirSync(currentWorkspacePath);
 
-  // Set macOS dock icon
-  if (process.platform === 'darwin' && app.dock) {
+  // Set macOS dock icon in development (in packaged app Info.plist sets icon.icns)
+  if (process.platform === 'darwin' && app.dock && !app.isPackaged) {
     const iconPath = path.join(__dirname, '../build/icon.png');
     if (fs.existsSync(iconPath)) {
-      app.dock.setIcon(iconPath);
+      try {
+        const img = nativeImage.createFromPath(iconPath);
+        if (!img.isEmpty()) {
+          app.dock.setIcon(img);
+        }
+      } catch {}
     }
   }
 
@@ -166,10 +172,17 @@ function setupIpcHandlers() {
             ? fs.readdirSync(notesDir).filter((f) => f.endsWith('.md')).length
             : 0;
 
+          let projName = entry.name;
+          try {
+            const raw = fs.readFileSync(projFile, 'utf-8');
+            const match = raw.match(/^name:\s*["']?([^"'\n\r]+)["']?/m);
+            if (match) projName = match[1].trim();
+          } catch {}
+
           const stats = fs.statSync(projFile);
           summaries.push({
             id: entry.name,
-            name: entry.name,
+            name: projName,
             entityCount,
             relationshipCount,
             sourceCount,
@@ -210,6 +223,41 @@ function setupIpcHandlers() {
       sources: readDirFiles('sources'),
       notes: readDirFiles('notes'),
     };
+  });
+
+  // Projects: Create
+  ipcMain.handle('projects:create', async (_, { name, description, id }) => {
+    const slug = id || (name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `proj-${Date.now()}`);
+    const projDir = sanitizeRelativePath(path.join(currentWorkspacePath, 'projects'), slug);
+    ensureDirSync(projDir);
+    ensureDirSync(path.join(projDir, 'entities'));
+    ensureDirSync(path.join(projDir, 'relationships'));
+    ensureDirSync(path.join(projDir, 'sources'));
+    ensureDirSync(path.join(projDir, 'notes'));
+
+    const projFile = path.join(projDir, 'project.md');
+    const now = new Date().toISOString();
+    const proj = {
+      id: slug,
+      name,
+      description: description || '',
+      created_at: now,
+      updated_at: now,
+    };
+    const content = `---\nid: "${slug}"\nname: "${name}"\ndescription: "${description || ''}"\ncreated_at: "${now}"\nupdated_at: "${now}"\n---\n\n# ${name}\n\n${description || ''}\n`;
+    atomicWriteFileSync(projFile, content);
+    return proj;
+  });
+
+  // Projects: Save
+  ipcMain.handle('projects:save', async (_, raw: string) => {
+    const idMatch = raw.match(/^id:\s*["']?([^"'\n\r]+)["']?/m);
+    if (!idMatch) return;
+    const projectId = idMatch[1].trim();
+    const projDir = sanitizeRelativePath(path.join(currentWorkspacePath, 'projects'), projectId);
+    ensureDirSync(projDir);
+    const filePath = path.join(projDir, 'project.md');
+    atomicWriteFileSync(filePath, raw);
   });
 
   // Projects: Delete
@@ -327,9 +375,10 @@ function setupIpcHandlers() {
     let targetPath = currentWorkspacePath;
     if (projectId) {
       const projDir = path.join(currentWorkspacePath, 'projects', projectId);
-      if (fs.existsSync(projDir)) {
-        targetPath = projDir;
-      }
+      ensureDirSync(projDir);
+      targetPath = projDir;
+    } else {
+      ensureDirSync(targetPath);
     }
     await shell.openPath(targetPath);
     return true;
