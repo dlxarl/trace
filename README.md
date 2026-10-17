@@ -2,6 +2,7 @@
 
 <p align="center">
   <img src="./build/icon.png" alt="Trace Logo" width="128" height="128" />
+  <img width="332" height="72" alt="alt-logo-white-4x" src="https://github.com/user-attachments/assets/55ddf5f0-cc50-49ec-82c5-38ff44b32a62" />
 </p>
 
 <p align="center">
@@ -9,6 +10,9 @@
 </p>
 
 ---
+
+<img width="1325" height="820" alt="app" src="https://github.com/user-attachments/assets/07906acd-c236-41e9-900d-422360f0c746" />
+
 
 ## Key Features
 
