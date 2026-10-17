@@ -57,6 +57,20 @@ declare global {
       openInExplorer: (projectId?: string) => Promise<boolean>;
       onStorageChange: (callback: (event: StorageChangeEvent) => void) => () => void;
       selectDirectory: () => Promise<string | null>;
+      sendApiRequest?: (req: {
+        url: string;
+        method?: string;
+        headers?: Record<string, string>;
+        body?: string;
+      }) => Promise<{
+        success: boolean;
+        status?: number;
+        statusText?: string;
+        headers?: Record<string, string>;
+        data?: any;
+        error?: string;
+        durationMs?: number;
+      }>;
     };
   }
 }
@@ -107,10 +121,12 @@ export class ElectronStorageAdapter implements IStorageService {
       notes,
     };
 
-    // Ensure SQLite index is populated
-    sqliteIndexService.init().then(() => {
-      sqliteIndexService.rebuildIndex(projectData);
-    });
+    // Lazily populate SQLite search index in the background without blocking UI
+    setTimeout(() => {
+      sqliteIndexService.init().then(() => {
+        sqliteIndexService.rebuildIndex(projectData);
+      }).catch(() => {});
+    }, 1500);
 
     return projectData;
   }
@@ -296,6 +312,10 @@ export class ElectronStorageAdapter implements IStorageService {
 
   async openInExplorer(projectId?: string): Promise<boolean> {
     return this.api.openInExplorer(projectId);
+  }
+
+  async selectDirectory(): Promise<string | null> {
+    return this.api.selectDirectory();
   }
 
   onStorageChange(listener: (event: StorageChangeEvent) => void): () => void {

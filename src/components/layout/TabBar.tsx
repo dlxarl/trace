@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Tab, TabType } from '@/types';
 import {
-  Layers,
-  Compass,
+  Network,
+  LayoutDashboard,
   Search,
   FileText,
   Share2,
-  Globe,
+  Link2,
   Plus,
   X,
   User,
@@ -23,6 +23,7 @@ interface TabBarProps {
   onTogglePinTab?: (tabId: string) => void;
   onCloseOtherTabs?: (tabId: string) => void;
   onCloseTabsToRight?: (tabId: string) => void;
+  onReorderTabs?: (newTabs: Tab[]) => void;
 }
 
 export const TabBar: React.FC<TabBarProps> = ({
@@ -34,6 +35,7 @@ export const TabBar: React.FC<TabBarProps> = ({
   onTogglePinTab,
   onCloseOtherTabs,
   onCloseTabsToRight,
+  onReorderTabs,
 }) => {
   const [tabContextMenu, setTabContextMenu] = useState<{
     visible: boolean;
@@ -41,6 +43,10 @@ export const TabBar: React.FC<TabBarProps> = ({
     y: number;
     tabId: string;
   } | null>(null);
+
+  // Drag and drop reordering state
+  const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
+  const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
@@ -63,9 +69,9 @@ export const TabBar: React.FC<TabBarProps> = ({
   const getTabIcon = (type: TabType) => {
     switch (type) {
       case 'graph':
-        return <Layers className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
+        return <Network className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
       case 'overview':
-        return <Compass className="w-3.5 h-3.5 text-sky-400 shrink-0" />;
+        return <LayoutDashboard className="w-3.5 h-3.5 text-sky-400 shrink-0" />;
       case 'search':
         return <Search className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
       case 'entity':
@@ -73,10 +79,10 @@ export const TabBar: React.FC<TabBarProps> = ({
       case 'relationship':
         return <Share2 className="w-3.5 h-3.5 text-violet-400 shrink-0" />;
       case 'source':
-        return <Globe className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+        return <Link2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
       case 'note':
       default:
-        return <FileText className="w-3.5 h-3.5 text-zinc-400 shrink-0" />;
+        return <FileText className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
     }
   };
 
@@ -90,57 +96,144 @@ export const TabBar: React.FC<TabBarProps> = ({
     });
   };
 
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedTabId(id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverTabId !== targetId) {
+      setDragOverTabId(targetId);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const sourceId = e.dataTransfer.getData('text/plain') || draggedTabId;
+    setDraggedTabId(null);
+    setDragOverTabId(null);
+    if (!sourceId || sourceId === targetId || !onReorderTabs) return;
+
+    const fromIndex = tabs.findIndex((t) => t.id === sourceId);
+    const toIndex = tabs.findIndex((t) => t.id === targetId);
+    if (fromIndex === -1 || toIndex === -1) return;
+
+    const sourceTab = tabs[fromIndex];
+    const newTabs = [...tabs];
+    newTabs.splice(fromIndex, 1);
+    newTabs.splice(toIndex, 0, sourceTab);
+
+    // Keep pinned tabs grouped together before unpinned tabs
+    const pinned = newTabs.filter((t) => t.isPinned);
+    const unpinned = newTabs.filter((t) => !t.isPinned);
+    onReorderTabs([...pinned, ...unpinned]);
+  };
+
   const currentContextTab = tabs.find((t) => t.id === tabContextMenu?.tabId);
 
   return (
     <div
       className="h-full flex items-center space-x-1 select-none overflow-x-auto relative flex-1 min-w-0"
       style={{ WebkitAppRegion: 'drag' as any }}
+      onAuxClick={(e) => {
+        // Middle click on empty area opens a new tab!
+        if (e.button === 1 && !(e.target as HTMLElement).closest('[data-tab-item]')) {
+          e.preventDefault();
+          onNewTab();
+        }
+      }}
+      onDoubleClick={(e) => {
+        // Double-click on empty area opens a new tab
+        if (!(e.target as HTMLElement).closest('[data-tab-item]')) {
+          onNewTab();
+        }
+      }}
     >
       {tabs.map((tab) => {
         const isActive = tab.id === activeTabId;
         const isPreview = tab.isPreview && !tab.isPinned;
+        const isDragTarget = dragOverTabId === tab.id;
+        const isBeingDragged = draggedTabId === tab.id;
 
         return (
           <div
             key={tab.id}
+            data-tab-item="true"
+            draggable={true}
+            onDragStart={(e) => handleDragStart(e, tab.id)}
+            onDragOver={(e) => handleDragOver(e, tab.id)}
+            onDragLeave={() => {
+              if (dragOverTabId === tab.id) setDragOverTabId(null);
+            }}
+            onDrop={(e) => handleDrop(e, tab.id)}
+            onDragEnd={() => {
+              setDraggedTabId(null);
+              setDragOverTabId(null);
+            }}
             onClick={() => onSelectTab(tab.id)}
-            onDoubleClick={() => onTogglePinTab?.(tab.id)}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onTogglePinTab?.(tab.id);
+            }}
             onContextMenu={(e) => handleContextMenu(e, tab.id)}
+            onAuxClick={(e) => {
+              // Middle-click on tab closes it!
+              if (e.button === 1) {
+                e.preventDefault();
+                e.stopPropagation();
+                onCloseTab(tab.id);
+              }
+            }}
+            onMouseDown={(e) => {
+              if (e.button === 1) {
+                e.preventDefault(); // prevent autoscroll cursor
+              }
+            }}
             style={{ WebkitAppRegion: 'no-drag' as any }}
-            className={`group h-7 px-2.5 rounded-lg flex items-center space-x-1.5 text-xs cursor-pointer border transition-all duration-150 shrink-0 ${
-              tab.isPinned ? 'max-w-[140px]' : 'max-w-[210px]'
+            className={`group h-7 rounded-lg flex items-center text-xs cursor-pointer border transition-all duration-150 shrink-0 ${
+              tab.isPinned ? 'px-2 space-x-1' : 'px-2.5 space-x-1.5 max-w-[210px]'
             } ${
               isActive
                 ? 'bg-[#1e1e28] border-white/10 text-white font-medium shadow-xs'
                 : 'border-transparent text-obsidian-dim hover:text-white hover:bg-white/5'
-            } ${isPreview ? 'italic' : ''}`}
+            } ${isPreview ? 'italic' : ''} ${
+              isDragTarget ? 'ring-2 ring-indigo-500/80 scale-102' : ''
+            } ${isBeingDragged ? 'opacity-40' : ''}`}
             title={`${tab.title}${isPreview ? ' (Preview - double-click to pin)' : tab.isPinned ? ' (Pinned)' : ''}`}
           >
-            {getTabIcon(tab.type)}
-            <span className="truncate flex-1 text-[11px]">{tab.title}</span>
-
-            {/* Pin indicator */}
-            {tab.isPinned && (
-              <Pin className="w-2.5 h-2.5 text-amber-400/80 shrink-0 rotate-45" />
-            )}
-
-            {/* Dirty indicator or Close button */}
-            {tab.isDirty ? (
-              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Unsaved changes" />
+            {tab.isPinned ? (
+              // Pinned tab: only tab icon and pinned icon (no title text!)
+              <>
+                {getTabIcon(tab.type)}
+                <Pin className="w-2.5 h-2.5 text-amber-400/90 shrink-0 rotate-45" />
+              </>
             ) : (
-              tabs.length > 1 && !tab.isPinned && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCloseTab(tab.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 hover:text-white hover:bg-obsidian-hover p-0.5 rounded text-obsidian-dim transition-opacity duration-150"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )
+              // Normal tab: icon + title + close/dirty indicator
+              <>
+                {getTabIcon(tab.type)}
+                <span className="truncate flex-1 text-[11px]">{tab.title}</span>
+
+                {/* Dirty indicator or Close button */}
+                {tab.isDirty ? (
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Unsaved changes" />
+                ) : (
+                  tabs.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCloseTab(tab.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 hover:text-white hover:bg-obsidian-hover p-0.5 rounded text-obsidian-dim transition-opacity duration-150"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )
+                )}
+              </>
             )}
           </div>
         );

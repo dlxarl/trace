@@ -30,17 +30,17 @@ export type EntityType =
 export const ENTITY_TYPES: { type: EntityType; label: string; color: string; iconName: string }[] = [
   { type: 'person', label: 'Person', color: '#38bdf8', iconName: 'User' },
   { type: 'organization', label: 'Organization', color: '#818cf8', iconName: 'Users' },
-  { type: 'company', label: 'Company', color: '#60a5fa', iconName: 'Building2' },
-  { type: 'website', label: 'Website', color: '#34d399', iconName: 'Globe' },
+  { type: 'company', label: 'Company', color: '#60a5fa', iconName: 'Briefcase' },
+  { type: 'website', label: 'Website', color: '#34d399', iconName: 'Globe2' },
   { type: 'domain', label: 'Domain', color: '#2dd4bf', iconName: 'Network' },
-  { type: 'account', label: 'Account', color: '#a78bfa', iconName: 'AtSign' },
+  { type: 'account', label: 'Account', color: '#a78bfa', iconName: 'Fingerprint' },
   { type: 'email', label: 'Email Address', color: '#fbbf24', iconName: 'Mail' },
   { type: 'phone', label: 'Phone Number', color: '#f59e0b', iconName: 'Phone' },
   { type: 'ip', label: 'IP Address', color: '#fb923c', iconName: 'Server' },
   { type: 'location', label: 'Location', color: '#f87171', iconName: 'MapPin' },
   { type: 'document', label: 'Document', color: '#94a3b8', iconName: 'FileText' },
   { type: 'event', label: 'Event', color: '#eab308', iconName: 'Calendar' },
-  { type: 'custom', label: 'Custom', color: '#e879f9', iconName: 'Tag' },
+  { type: 'custom', label: 'Custom', color: '#e879f9', iconName: 'Boxes' },
 ];
 
 export type RelationshipStatus =
@@ -204,11 +204,32 @@ export interface ProjectSummary {
   updated_at: string;
 }
 
+export interface QuickSource {
+  id: string;
+  title: string;
+  url?: string;
+  source_type?: SourceType | string;
+  description?: string;
+  projectId?: string;
+  created_at: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | string;
+  headers?: Record<string, string> | string;
+  body?: string;
+  lastResponse?: {
+    status?: number;
+    statusText?: string;
+    data?: any;
+    durationMs?: number;
+    timestamp?: string;
+  };
+}
+
 export interface Workspace {
   id: string;
   name: string;
   activeProjectId?: string;
   workspacePath?: string;
+  quickSources?: QuickSource[];
   created_at: string;
   updated_at: string;
 }

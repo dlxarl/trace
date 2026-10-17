@@ -19,13 +19,33 @@
 ### Interactive Knowledge Graph
 - **Link & Entity Analysis**: Map complex networks of people, companies, organizations, domains, IP addresses, crypto wallets, and custom nodes.
 - **Physics-Driven Interactions**: Dynamic repulsion physics when dragging nodes, fluid bouncy response, and circular hover glow highlighting without boxy background wrappers.
+- **Fast Node Connection**: Press <kbd>C</kbd> (or click the Connect tool) and drag between any two nodes to instantly create relationships.
 - **Layout Algorithms**: Support for CoSE (force-directed), Concentric, and Breadthfirst layouts, with automatic layout position persistence across sessions.
 - **Embedded Images**: Direct rendering of profile avatars and photographic evidence within graph nodes.
 - **Wikilink Mentions**: Notes using `[[Target Entity]]` syntax automatically generate interactive dashed mention relationships on the graph canvas.
 
+### Heuristic Relationship Discovery ("Find Links")
+- **Automated Intelligence Scanning**: Analyze entities across your project for non-obvious correlations:
+  - **Surnames**: Family connection heuristic matching patronymics and shared surnames.
+  - **Contacts**: Exact normalized phone numbers and email matching.
+  - **Corporate Networks**: Common corporate email domains (filtering out public mail hosts).
+  - **Infrastructure**: Shared IP addresses and hosts.
+  - **Organizations & Workplaces**: Common employers, companies, and locations.
+  - **Unique Identifiers**: Shared tax IDs (ІПН, ЄДРПОУ), passports, Telegram handles, and vehicle plates.
+  - **Attribute Mentions**: Cross-references when entity names appear inside another entity's attributes or notes.
+- **Analyst-in-the-Loop Verification**: Discovered connections are initially added as `unverified` candidate relationships with a visual indicator. Analysts can review evidence, filter by confidence score, and confirm directly on the graph canvas or in bulk.
+
+### Quick Sources & Interactive API Requester
+- **OSINT Bookmarks & Presets**: Instant access to OSINT tools, registries, and search engines (VirusTotal, Shodan, Censys, Whois, OpenSanctions, etc.).
+- **Live API Request Console**:
+  - Send HTTP requests directly from the app (<kbd>GET</kbd>, <kbd>POST</kbd>, <kbd>PUT</kbd>, <kbd>PATCH</kbd>, <kbd>DELETE</kbd>).
+  - Custom headers and formatted request body editor with JSON beautifier.
+  - Native Node/Electron IPC execution (`net:request`) bypassing browser CORS limitations.
+  - **Entity Linking**: Seamlessly attach API responses directly to entities as a project evidence source, formatted research note, or raw entity attribute.
+
 ### Local-First File Architecture
 - **Complete Data Ownership**: No cloud sync dependencies or third-party telemetries.
-- Transparent storage layout under `~/Documents/Trace-OSINT-Workspace/projects/<project-id>/`:
+- Transparent storage layout under default directory `~/Documents/trace/projects/<project-id>/` (customizable to any folder via Project Switcher or Settings):
   - `project.md`: Investigation scope, status, and Markdown briefing.
   - `entities/*.md`: Individual entity profiles with structured YAML metadata and research notes.
   - `relationships/*.md`: Directed and undirected links with confidence ratings and status flags.
@@ -114,6 +134,7 @@ npm run package:dir
 | <kbd>Cmd/Ctrl</kbd> + <kbd>[</kbd> | Toggle Left Sidebar |
 | <kbd>Cmd/Ctrl</kbd> + <kbd>]</kbd> | Toggle Right Inspector Panel |
 | <kbd>Cmd/Ctrl</kbd> + <kbd>,</kbd> | Open Settings |
+| <kbd>C</kbd> | Toggle Connect Mode on Interactive Graph |
 | <kbd>?</kbd> | View Keyboard Shortcuts Cheat Sheet |
 | <kbd>Esc</kbd> | Dismiss active modal or context menu |
 

@@ -11,6 +11,7 @@ import {
   FileText,
   Link,
   ShieldCheck,
+  Star,
 } from 'lucide-react';
 
 interface SourceEditorProps {
@@ -20,6 +21,8 @@ interface SourceEditorProps {
   onDelete: (sourceId: string) => void;
   onOpenRelationship: (relId: string) => void;
   onOpenEntity: (entityId: string) => void;
+  isQuickPinned?: boolean;
+  onToggleQuickPin?: () => void;
 }
 
 export const SourceEditor: React.FC<SourceEditorProps> = ({
@@ -29,6 +32,8 @@ export const SourceEditor: React.FC<SourceEditorProps> = ({
   onDelete,
   onOpenRelationship,
   onOpenEntity,
+  isQuickPinned,
+  onToggleQuickPin,
 }) => {
   const [draft, setDraft] = useState<Source>({ ...source });
   const [isDirty, setIsDirty] = useState<boolean>(false);
@@ -76,6 +81,34 @@ export const SourceEditor: React.FC<SourceEditorProps> = ({
         </div>
 
         <div className="flex items-center space-x-2">
+          {onToggleQuickPin && (
+            <button
+              type="button"
+              onClick={onToggleQuickPin}
+              className={`px-2.5 py-1.5 flex items-center space-x-1.5 text-xs rounded-md font-medium transition-colors border ${
+                isQuickPinned
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+                  : 'bg-[#18181f] text-obsidian-dim hover:text-white hover:bg-white/5 border-obsidian-border'
+              }`}
+              title={isQuickPinned ? 'Remove from Global Quick Access' : 'Pin to Global Quick Access'}
+            >
+              <Star className={`w-3.5 h-3.5 ${isQuickPinned ? 'fill-amber-400 text-amber-400' : ''}`} />
+              <span>{isQuickPinned ? 'In Quick Access' : 'Quick Access'}</span>
+            </button>
+          )}
+
+          {draft.url && (
+            <a
+              href={draft.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1.5 text-obsidian-dim hover:text-emerald-400 hover:bg-white/5 rounded-md transition-colors"
+              title="Open URL in Browser"
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
+
           <button
             type="button"
             onClick={handleSave}

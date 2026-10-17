@@ -5,7 +5,10 @@ import path from 'path'
 import crypto from 'node:crypto'
 
 const isElectron = process.env.ELECTRON === 'true'
-const buildHash = crypto.randomBytes(5).toString('hex')
+const buildHash = crypto
+  .createHash('sha256')
+  .update(`${Date.now()}-${Math.random()}-${process.pid}`)
+  .digest('hex')
 
 // https://vite.dev/config/
 export default defineConfig({

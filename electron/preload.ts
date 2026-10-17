@@ -64,4 +64,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('storage:changed', handler);
     };
   },
+
+  // Platform & Window State
+  platform: process.platform,
+  isFullScreen: () => ipcRenderer.invoke('window:isFullScreen'),
+  onFullScreenChange: (callback: (isFull: boolean) => void) => {
+    const handler = (_: any, isFull: boolean) => callback(isFull);
+    ipcRenderer.on('window:fullscreen-change', handler);
+    return () => {
+      ipcRenderer.removeListener('window:fullscreen-change', handler);
+    };
+  },
+
+  // Network Request (Proxy for API Quick Sources)
+  sendApiRequest: (req: {
+    url: string;
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }) => ipcRenderer.invoke('net:request', req),
 });

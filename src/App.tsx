@@ -8,8 +8,10 @@ import {
   ProjectData,
   ProjectSummary,
   Relationship,
+  RelationshipStatus,
   SearchResult,
   Source,
+  QuickSource,
   Tab,
   TabType,
   Workspace,
@@ -34,8 +36,11 @@ import { ShortcutsModal } from '@/components/modals/ShortcutsModal';
 import { SettingsModal } from '@/components/modals/SettingsModal';
 import { createSampleProject } from '@/services/storage/sampleData';
 import {
-  PanelLeft,
-  PanelRight,
+  SidebarClose,
+  SidebarOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Folder,
   FolderKanban,
   FolderOpen,
   ChevronDown,
@@ -54,10 +59,44 @@ export function App() {
   const [projectData, setProjectData] = useState<ProjectData | null>(null);
   const [graphPositions, setGraphPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [loadingProgress, setLoadingProgress] = useState<number>(15);
 
   // Layout Panels State
   const [leftSidebarOpen, setLeftSidebarOpen] = useState<boolean>(true);
   const [rightSidebarOpen, setRightSidebarOpen] = useState<boolean>(true);
+
+  // OS & Fullscreen detection
+  const [platform] = useState<string>(() => {
+    if (typeof window !== 'undefined' && (window as any).electronAPI?.platform) {
+      return (window as any).electronAPI.platform;
+    }
+    if (typeof navigator !== 'undefined') {
+      if (/Mac/i.test(navigator.userAgent)) return 'darwin';
+      if (/Win/i.test(navigator.userAgent)) return 'win32';
+      if (/Linux/i.test(navigator.userAgent)) return 'linux';
+    }
+    return 'darwin';
+  });
+
+  const [isFullScreen, setIsFullScreen] = useState<boolean>(false);
+
+  useEffect(() => {
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.onFullScreenChange) {
+      electronAPI.isFullScreen?.().then((full: boolean) => setIsFullScreen(!!full));
+      return electronAPI.onFullScreenChange((full: boolean) => setIsFullScreen(full));
+    } else {
+      const handleFsChange = () => {
+        setIsFullScreen(!!document.fullscreenElement);
+      };
+      document.addEventListener('fullscreenchange', handleFsChange);
+      return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }
+  }, []);
+
+  const isMac = platform === 'darwin';
+  const isWin = platform === 'win32';
 
   // Sidebar Widths State (persisted in localStorage)
   const [leftSidebarWidth, setLeftSidebarWidth] = useState<number>(() => {
@@ -97,6 +136,240 @@ export function App() {
   const [entityModalDefaultType, setEntityModalDefaultType] = useState<EntityType | undefined>(undefined);
   const [relModalOpen, setRelModalOpen] = useState<boolean>(false);
   const [relModalDefaultSource, setRelModalDefaultSource] = useState<string | undefined>(undefined);
+  const [relModalDefaultTarget, setRelModalDefaultTarget] = useState<string | undefined>(undefined);
+
+  // Global Quick Sources (independent of project)
+  const [quickSources, setQuickSources] = useState<QuickSource[]>(() => {
+    try {
+      const saved = localStorage.getItem('trace_quick_sources');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const saveQuickSources = useCallback(
+    (newQuickSources: QuickSource[]) => {
+      setQuickSources(newQuickSources);
+      try {
+        localStorage.setItem('trace_quick_sources', JSON.stringify(newQuickSources));
+      } catch (err) {
+        console.error('Failed to save quick sources to localStorage', err);
+      }
+      if (workspace) {
+        storage.saveWorkspace({ ...workspace, quickSources: newQuickSources }).catch(() => {});
+      }
+    },
+    [workspace, storage]
+  );
+
+  const handleAddQuickSource = (qs: Omit<QuickSource, 'id' | 'created_at'>) => {
+    const newEntry: QuickSource = {
+      ...qs,
+      id: `qs-${Date.now().toString(36)}`,
+      created_at: new Date().toISOString(),
+    };
+    const updated = [newEntry, ...quickSources.filter((s) => s.url !== newEntry.url || !s.url)];
+    saveQuickSources(updated);
+    showToast(`Added "${newEntry.title}" to Quick Access`);
+  };
+
+  const handleRemoveQuickSource = (id: string) => {
+    const updated = quickSources.filter((s) => s.id !== id);
+    saveQuickSources(updated);
+    showToast('Removed from Quick Access');
+  };
+
+  const handleTogglePinSource = (sourceId: string) => {
+    if (!projectData) return;
+    const existingIndex = quickSources.findIndex((qs) => qs.id === sourceId || qs.id === `qs-${sourceId}`);
+    if (existingIndex >= 0) {
+      const updated = quickSources.filter((_, idx) => idx !== existingIndex);
+      saveQuickSources(updated);
+      showToast('Removed from Quick Access');
+    } else {
+      const src = projectData.sources.find((s) => s.id === sourceId);
+      if (!src) return;
+      const newEntry: QuickSource = {
+        id: `qs-${src.id}`,
+        title: src.title,
+        url: src.url,
+        source_type: src.source_type,
+        projectId: activeProjectId,
+        created_at: new Date().toISOString(),
+      };
+      saveQuickSources([newEntry, ...quickSources]);
+      showToast(`Pinned "${src.title}" to Quick Access`);
+    }
+  };
+
+  const isSourceQuickPinned = (sourceId: string) => {
+    return quickSources.some((qs) => qs.id === sourceId || qs.id === `qs-${sourceId}`);
+  };
+
+  const handleUpdateQuickSource = (updatedQs: QuickSource) => {
+    const updated = quickSources.map((qs) => (qs.id === updatedQs.id ? updatedQs : qs));
+    saveQuickSources(updated);
+  };
+
+  const handleAttachSourceToEntity = async (
+    entityId: string,
+    sourceTitle: string,
+    url: string,
+    content: string
+  ) => {
+    if (!activeProjectId || !projectData) return;
+    const targetEntity = projectData.entities.find((e) => e.id === entityId);
+    if (!targetEntity) return;
+
+    const newSourceId = `src-${Date.now().toString(36)}`;
+    const newSource: Source = {
+      id: newSourceId,
+      type: 'source',
+      title: sourceTitle,
+      url: url,
+      source_type: 'other',
+      accessed_at: new Date().toISOString(),
+      markdownBody: content,
+    };
+    await storage.saveSource(activeProjectId, newSource);
+
+    const currentSources = Array.isArray(targetEntity.attributes?.sources)
+      ? [...targetEntity.attributes.sources]
+      : [];
+    if (!currentSources.includes(newSourceId)) {
+      currentSources.push(newSourceId);
+    }
+    const updatedEntity: Entity = {
+      ...targetEntity,
+      attributes: {
+        ...targetEntity.attributes,
+        sources: currentSources,
+        last_api_source: newSourceId,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    await storage.saveEntity(activeProjectId, updatedEntity);
+
+    setProjectData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        sources: [newSource, ...prev.sources.filter((s) => s.id !== newSourceId)],
+        entities: prev.entities.map((e) => (e.id === entityId ? updatedEntity : e)),
+      };
+    });
+    showToast(`Linked API source to "${targetEntity.name}"`);
+  };
+
+  const handleAddEntityAttribute = async (entityId: string, key: string, value: any) => {
+    if (!activeProjectId || !projectData) return;
+    const targetEntity = projectData.entities.find((e) => e.id === entityId);
+    if (!targetEntity) return;
+
+    const updatedEntity: Entity = {
+      ...targetEntity,
+      attributes: {
+        ...targetEntity.attributes,
+        [key]: value,
+      },
+      updated_at: new Date().toISOString(),
+    };
+    await storage.saveEntity(activeProjectId, updatedEntity);
+    setProjectData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        entities: prev.entities.map((e) => (e.id === entityId ? updatedEntity : e)),
+      };
+    });
+    showToast(`Saved attribute "${key}" on "${targetEntity.name}"`);
+  };
+
+  const handleCreateNoteOnEntity = async (entityId: string, title: string, content: string) => {
+    if (!activeProjectId || !projectData) return;
+    const targetEntity = projectData.entities.find((e) => e.id === entityId);
+    const newNoteId = `note-${Date.now().toString(36)}`;
+    const newNote: Note = {
+      id: newNoteId,
+      type: 'note',
+      title: title,
+      tags: targetEntity ? [targetEntity.name, 'api_result'] : ['api_result'],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      markdownBody: content,
+    };
+    await storage.saveNote(activeProjectId, newNote);
+    setProjectData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        notes: [newNote, ...prev.notes.filter((n) => n.id !== newNoteId)],
+      };
+    });
+    showToast(`Created note for "${targetEntity?.name || entityId}"`);
+  };
+
+  const handleBatchAddRelationships = async (
+    newRels: Array<{
+      source_entity: string;
+      target_entity: string;
+      type: string;
+      status: RelationshipStatus;
+      confidence?: number;
+      evidence: string[];
+    }>
+  ) => {
+    if (!activeProjectId || !projectData) return;
+    const created: Relationship[] = [];
+
+    for (let i = 0; i < newRels.length; i++) {
+      const item = newRels[i];
+      const relId = `rel-${Date.now().toString(36)}-${i}`;
+      const rel: Relationship = {
+        id: relId,
+        type: item.type,
+        source_entity: item.source_entity,
+        target_entity: item.target_entity,
+        directed: true,
+        status: item.status, // 'unverified'
+        confidence: item.confidence ?? null,
+        evidence: item.evidence,
+        created_at: new Date().toISOString(),
+        markdownBody: `### Inferred Relationship\n\n- **Evidence:** ${item.evidence.join(', ')}\n- **Status:** ${item.status}\n`,
+      };
+      await storage.saveRelationship(activeProjectId, rel);
+      created.push(rel);
+    }
+
+    setProjectData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        relationships: [...prev.relationships, ...created],
+      };
+    });
+    showToast(`Added ${created.length} unverified relationship${created.length === 1 ? '' : 's'}`);
+  };
+
+  const handleConfirmRelationship = async (relId: string) => {
+    if (!activeProjectId || !projectData) return;
+    const rel = projectData.relationships.find((r) => r.id === relId);
+    if (!rel) return;
+    const updated: Relationship = {
+      ...rel,
+      status: 'confirmed',
+    };
+    await storage.saveRelationship(activeProjectId, updated);
+    setProjectData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        relationships: prev.relationships.map((r) => (r.id === relId ? updated : r)),
+      };
+    });
+    showToast(`Confirmed relationship: ${rel.type}`);
+  };
+
   const [projectModalOpen, setProjectModalOpen] = useState<boolean>(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
   const [shortcutsModalOpen, setShortcutsModalOpen] = useState<boolean>(false);
@@ -163,11 +436,24 @@ export function App() {
   const loadWorkspaceData = useCallback(async () => {
     try {
       setIsLoading(true);
+      setLoadingProgress(20);
       const ws = await storage.getWorkspace();
       setWorkspace(ws);
+      if (ws.quickSources && ws.quickSources.length > 0) {
+        setQuickSources((prev) => {
+          const ids = new Set(prev.map((p) => p.id));
+          const newFromWs = ws.quickSources!.filter((s) => !ids.has(s.id));
+          return [...prev, ...newFromWs];
+        });
+      }
+      setLoadingProgress(40);
+
+      // Yield thread briefly to keep UI and progress bar completely smooth
+      await new Promise((resolve) => setTimeout(resolve, 60));
 
       let projs = await storage.listProjects();
       const sample = createSampleProject();
+      setLoadingProgress(60);
 
       // Ensure the Getting Started tutorial project exists for everyone
       if (!projs.some((p) => p.id === sample.project.id)) {
@@ -193,6 +479,8 @@ export function App() {
       }
 
       setProjects(projs);
+      setLoadingProgress(75);
+      await new Promise((resolve) => setTimeout(resolve, 60));
 
       let targetProjectId = ws.activeProjectId || sample.project.id;
       if (targetProjectId) {
@@ -203,15 +491,46 @@ export function App() {
           setActiveProjectId(projs[0].id);
         }
         setProjectData(data);
+        setLoadingProgress(90);
         const layout = await storage.getGraphLayout(targetProjectId);
         setGraphPositions(layout.positions || {});
       }
+      setLoadingProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 100));
     } catch (err) {
       console.error('Failed to load workspace:', err);
     } finally {
       setIsLoading(false);
+      setTimeout(() => {
+        setInitialLoading(false);
+      }, 250);
     }
   }, [storage]);
+
+  // Change working folder
+  const handleChangeWorkingFolder = async () => {
+    if (!storage.selectDirectory) return;
+    try {
+      const selected = await storage.selectDirectory();
+      if (!selected) return;
+      const folderName = selected.split('/').filter(Boolean).pop() || selected;
+      showToast(`Switched working folder to ${folderName}`);
+      setTabs([
+        {
+          id: 'graph',
+          type: 'graph',
+          title: 'Interactive Graph',
+          isPinned: true,
+          isPreview: false,
+        },
+      ]);
+      setActiveTabId('graph');
+      await loadWorkspaceData();
+    } catch (err) {
+      console.error('Failed to change working folder:', err);
+      showToast('Failed to switch working folder');
+    }
+  };
 
   useEffect(() => {
     loadWorkspaceData();
@@ -322,9 +641,15 @@ export function App() {
 
     if (existingIndex >= 0) {
       if (options?.isPinned) {
-        setTabs((prev) =>
-          prev.map((t) => (t.id === tabId ? { ...t, isPinned: true, isPreview: false } : t))
-        );
+        setTabs((prev) => {
+          const target = prev.find((t) => t.id === tabId);
+          if (!target) return prev;
+          const updated = { ...target, isPinned: true, isPreview: false };
+          const others = prev.filter((t) => t.id !== tabId);
+          const pinned = others.filter((t) => t.isPinned);
+          const unpinned = others.filter((t) => !t.isPinned);
+          return [...pinned, updated, ...unpinned];
+        });
       } else if (options?.isPreview === false) {
         setTabs((prev) =>
           prev.map((t) => (t.id === tabId ? { ...t, isPreview: false } : t))
@@ -366,7 +691,14 @@ export function App() {
         isDirty: false,
       };
 
-      if (wantsPreview && replaceablePreviewIndex >= 0) {
+      if (newTab.isPinned) {
+        // Pinned tab joins pinned section after existing pinned tabs
+        setTabs((prev) => {
+          const pinned = prev.filter((t) => t.isPinned);
+          const unpinned = prev.filter((t) => !t.isPinned);
+          return [...pinned, newTab, ...unpinned];
+        });
+      } else if (wantsPreview && replaceablePreviewIndex >= 0) {
         setTabs((prev) => {
           const updated = [...prev];
           updated[replaceablePreviewIndex] = newTab;
@@ -398,11 +730,27 @@ export function App() {
   };
 
   const togglePinTab = (tabId: string) => {
-    setTabs((prev) =>
-      prev.map((t) =>
-        t.id === tabId ? { ...t, isPinned: !t.isPinned, isPreview: false } : t
-      )
-    );
+    setTabs((prev) => {
+      const target = prev.find((t) => t.id === tabId);
+      if (!target) return prev;
+      const willPin = !target.isPinned;
+      const updated: Tab = {
+        ...target,
+        isPinned: willPin,
+        isPreview: false,
+      };
+      const others = prev.filter((t) => t.id !== tabId);
+      const pinned = others.filter((t) => t.isPinned);
+      const unpinned = others.filter((t) => !t.isPinned);
+
+      if (willPin) {
+        // Becomes first if no pinned existed, or placed after existing pinned tabs
+        return [...pinned, updated, ...unpinned];
+      } else {
+        // When unpinning, moves to start of unpinned tabs
+        return [...pinned, updated, ...unpinned];
+      }
+    });
   };
 
   const closeOtherTabs = (tabId: string) => {
@@ -643,7 +991,51 @@ export function App() {
   const activeTab = tabs.find((t) => t.id === activeTabId) || tabs[0];
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-obsidian-bg text-obsidian-text font-sans relative">
+      {/* App Startup Loading Screen */}
+      {initialLoading && (
+        <div
+          className="fixed inset-0 z-50 bg-[#121214] flex flex-col items-center justify-center select-none transition-opacity duration-300"
+          style={{ WebkitAppRegion: 'drag' as any }}
+        >
+          {/* macOS Traffic Lights Spacer */}
+          {isMac && !isFullScreen && <div className="absolute top-3 left-4 w-[74px] h-4 pointer-events-none" />}
+
+          <div className="flex flex-col items-center w-full max-w-md px-8 text-center">
+            <div className="text-sm font-semibold tracking-wide text-zinc-200 mb-4 flex items-center gap-2">
+              <span>Loading Trace</span>
+            </div>
+
+            {/* Long Progress Bar Container */}
+            <div className="w-full h-1.5 bg-zinc-800/80 rounded-full overflow-hidden p-0.5 border border-white/5">
+              <div
+                className="h-full bg-gradient-to-r from-indigo-500 via-indigo-400 to-sky-400 rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.5)]"
+                style={{ width: `${Math.min(100, Math.max(8, loadingProgress))}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Version & SHA256 Build Info on Loading Screen */}
+          <div className="absolute bottom-6 flex flex-col items-center text-center space-y-1 select-text">
+            <div className="flex items-center space-x-1.5">
+              <span className="text-xs font-semibold text-zinc-400">Trace</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'beta0.0.1'}
+              </span>
+            </div>
+            <div className="text-[10px] text-zinc-500 font-mono flex items-center space-x-1 max-w-xs sm:max-w-md truncate">
+              <span className="shrink-0">sha256:</span>
+              <span
+                className="text-zinc-400 select-all font-mono truncate"
+                title={typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}
+              >
+                {typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Hidden File Input for ZIP Import */}
       <input
         ref={fileInputRef}
@@ -658,22 +1050,18 @@ export function App() {
         className="h-9.5 bg-[#121215] border-b border-obsidian-border flex items-center px-2 select-none shrink-0 z-30"
         style={{ WebkitAppRegion: 'drag' as any }}
       >
-        {/* macOS Traffic Lights Spacer - Always fixed 74px safe zone */}
-        <div className="w-[74px] shrink-0 pointer-events-none" />
+        {/* macOS Traffic Lights Spacer - Only shown on macOS in non-fullscreen window */}
+        {isMac && !isFullScreen && <div className="w-[74px] shrink-0 pointer-events-none" />}
 
-        {/* Left Sidebar Toggle Button (PanelLeft icon, like Obsidian!) */}
+        {/* Left Sidebar Toggle Button */}
         <button
           type="button"
           onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
           style={{ WebkitAppRegion: 'no-drag' as any }}
-          className={`p-1.5 rounded-lg transition-colors mr-1.5 shrink-0 ${
-            leftSidebarOpen
-              ? 'text-indigo-400 bg-indigo-500/15'
-              : 'text-obsidian-dim hover:text-white hover:bg-white/10'
-          }`}
+          className="p-1.5 rounded-lg transition-colors mr-1 shrink-0 text-zinc-400 hover:text-zinc-100 hover:bg-white/10 active:bg-white/15"
           title={leftSidebarOpen ? 'Collapse Left Sidebar (Ctrl/Cmd + [)' : 'Expand Left Sidebar (Ctrl/Cmd + [)'}
         >
-          <PanelLeft className="w-4 h-4" />
+          {leftSidebarOpen ? <SidebarClose className="w-4 h-4" /> : <SidebarOpen className="w-4 h-4" />}
         </button>
 
         {/* Project Switcher Dropdown Button */}
@@ -739,6 +1127,20 @@ export function App() {
               </div>
 
               <div className="border-t border-obsidian-border pt-1 mt-1 space-y-0.5">
+                {storage.isDesktop() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProjectSelectorOpen(false);
+                      handleChangeWorkingFolder();
+                    }}
+                    className="w-full px-2.5 py-1.5 text-left text-zinc-300 hover:text-white hover:bg-white/5 rounded-lg flex items-center space-x-2 text-xs transition-colors"
+                  >
+                    <Folder className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>Choose Working Folder...</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -791,6 +1193,7 @@ export function App() {
           onTogglePinTab={togglePinTab}
           onCloseOtherTabs={closeOtherTabs}
           onCloseTabsToRight={closeTabsToRight}
+          onReorderTabs={setTabs}
         />
 
         {/* Right Sidebar Inspector Toggle */}
@@ -799,16 +1202,15 @@ export function App() {
             type="button"
             onClick={() => setRightSidebarOpen(!rightSidebarOpen)}
             style={{ WebkitAppRegion: 'no-drag' as any }}
-            className={`p-1.5 rounded-lg transition-colors ml-1 shrink-0 ${
-              rightSidebarOpen
-                ? 'text-indigo-400 bg-indigo-500/15'
-                : 'text-obsidian-dim hover:text-white hover:bg-white/10'
-            }`}
+            className="p-1.5 rounded-lg transition-colors ml-1 shrink-0 text-zinc-400 hover:text-zinc-100 hover:bg-white/10 active:bg-white/15"
             title={rightSidebarOpen ? 'Collapse Inspector (Ctrl/Cmd + ])' : 'Expand Inspector (Ctrl/Cmd + ])'}
           >
-            <PanelRight className="w-4 h-4" />
+            {rightSidebarOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
           </button>
         )}
+
+        {/* Windows Titlebar Controls Safe Space (Minimize, Maximize, Close on right side) */}
+        {isWin && !isFullScreen && <div className="w-[138px] shrink-0 pointer-events-none" />}
       </header>
 
       {/* Main Body Below Top Header */}
@@ -834,8 +1236,19 @@ export function App() {
             }}
             onCreateRelationshipModal={(sourceId) => {
               setRelModalDefaultSource(sourceId);
+              setRelModalDefaultTarget(undefined);
               setRelModalOpen(true);
             }}
+            quickSources={quickSources}
+            onAddQuickSource={handleAddQuickSource}
+            onRemoveQuickSource={handleRemoveQuickSource}
+            onTogglePinQuickSource={handleTogglePinSource}
+            isSourceQuickPinned={isSourceQuickPinned}
+            entities={projectData?.entities || []}
+            onAttachSourceToEntity={handleAttachSourceToEntity}
+            onAddEntityAttribute={handleAddEntityAttribute}
+            onCreateNoteOnEntity={handleCreateNoteOnEntity}
+            onUpdateQuickSource={handleUpdateQuickSource}
             onCreateSourceModal={() => {
               if (!activeProjectId) return;
               const now = new Date().toISOString();
@@ -943,8 +1356,9 @@ export function App() {
                     openTab('note', id, n ? n.title : id);
                   }}
                   onCreateEntity={() => setEntityModalOpen(true)}
-                  onCreateRelationshipFromEntity={(sourceId) => {
+                  onCreateRelationshipFromEntity={(sourceId, targetId) => {
                     setRelModalDefaultSource(sourceId);
+                    setRelModalDefaultTarget(targetId);
                     setRelModalOpen(true);
                   }}
                   onDeleteEntity={handleDeleteEntity}
@@ -952,6 +1366,8 @@ export function App() {
                   onDeleteNote={handleDeleteNote}
                   initialPositions={graphPositions}
                   onSavePositions={handleSavePositions}
+                  onBatchAddRelationships={handleBatchAddRelationships}
+                  onConfirmRelationship={handleConfirmRelationship}
                 />
               )}
 
@@ -1067,6 +1483,8 @@ export function App() {
                         const e = projectData.entities.find((ent) => ent.id === id);
                         openTab('entity', id, e ? e.name : id);
                       }}
+                      isQuickPinned={isSourceQuickPinned(src.id)}
+                      onToggleQuickPin={() => handleTogglePinSource(src.id)}
                     />
                   );
                 })()
@@ -1166,7 +1584,11 @@ export function App() {
       {projectData && (
         <NewRelationshipModal
           isOpen={relModalOpen}
-          onClose={() => setRelModalOpen(false)}
+          onClose={() => {
+            setRelModalOpen(false);
+            setRelModalDefaultSource(undefined);
+            setRelModalDefaultTarget(undefined);
+          }}
           onCreate={async (newRel) => {
             if (!activeProjectId) return;
             await handleSaveRelationship(newRel);
@@ -1174,6 +1596,7 @@ export function App() {
           }}
           projectData={projectData}
           defaultSourceId={relModalDefaultSource}
+          defaultTargetId={relModalDefaultTarget}
         />
       )}
 
@@ -1213,6 +1636,7 @@ export function App() {
         workspace={workspace}
         activeProjectId={activeProjectId}
         isDesktop={storage.isDesktop()}
+        onSelectDirectory={handleChangeWorkingFolder}
         onOpenInExplorer={handleOpenInExplorer}
         onExportZip={handleExportZip}
         onRebuildIndex={handleRebuildIndex}

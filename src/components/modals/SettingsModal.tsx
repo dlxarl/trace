@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   X,
   Settings as SettingsIcon,
+  Folder,
   FolderOpen,
   Download,
   RefreshCw,
   Trash2,
   Sliders,
   Layers,
-  Sparkles,
   Keyboard,
   HardDrive,
   Check,
@@ -21,6 +21,7 @@ interface SettingsModalProps {
   workspace?: Workspace | null;
   activeProjectId?: string;
   isDesktop?: boolean;
+  onSelectDirectory?: () => void;
   onOpenInExplorer?: (projectId?: string) => void;
   onExportZip: () => void;
   onRebuildIndex: () => void;
@@ -33,6 +34,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   workspace,
   activeProjectId,
   isDesktop = false,
+  onSelectDirectory,
   onOpenInExplorer,
   onExportZip,
   onRebuildIndex,
@@ -120,26 +122,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </h3>
 
             <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/5 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="text-xs font-medium text-white">
-                    {isDesktop ? 'Local Project Folder' : 'Browser Offline Storage'}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-medium text-white flex items-center space-x-2">
+                    <span>{isDesktop ? 'Working Directory' : 'Browser Offline Storage'}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                      trace
+                    </span>
                   </div>
-                  <div className="text-[11px] text-obsidian-dim mt-0.5 max-w-sm truncate font-mono">
-                    {workspace?.name || 'Trace Investigation Workspace'}
+                  <div
+                    className="text-[11px] text-obsidian-dim mt-1 truncate font-mono bg-black/30 px-2 py-1 rounded border border-white/5 select-all"
+                    title={workspace?.workspacePath || workspace?.name || 'Documents/trace'}
+                  >
+                    {workspace?.workspacePath || workspace?.name || '~/Documents/trace'}
                   </div>
                 </div>
 
-                {onOpenInExplorer && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenInExplorer(activeProjectId)}
-                    className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center space-x-1.5 text-xs font-medium transition-all shadow-sm"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>{isDesktop ? 'Show in Finder' : 'Download Project ZIP'}</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                  {isDesktop && onSelectDirectory && (
+                    <button
+                      type="button"
+                      onClick={onSelectDirectory}
+                      className="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 flex items-center space-x-1.5 text-xs font-medium transition-all"
+                      title="Choose working directory"
+                    >
+                      <Folder className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Change Folder</span>
+                    </button>
+                  )}
+
+                  {onOpenInExplorer && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenInExplorer(activeProjectId)}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 flex items-center space-x-1.5 text-xs font-medium transition-all shadow-sm"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>{isDesktop ? 'Show in Finder' : 'Download Project ZIP'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-1 border-t border-white/5">
@@ -290,34 +312,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
-
-          {/* Version & Build Info */}
-          <div className="pt-4 border-t border-white/5 flex flex-col items-center justify-center text-center space-y-1 py-1">
-            <div className="text-xs font-medium text-zinc-300 flex items-center space-x-1.5">
-              <span>Trace</span>
-              <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'beta0.0.1'}
-              </span>
-            </div>
-            <div className="text-[11px] font-mono text-zinc-500">
-              Build hash: <span className="text-zinc-400 font-mono select-all font-semibold">#{typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}</span>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="px-5 py-3 border-t border-obsidian-border bg-[#141419]/80 flex items-center justify-between">
-          <div className="flex flex-col select-text">
+          <div className="flex flex-col select-text min-w-0 pr-4">
             <div className="flex items-center space-x-1.5">
               <span className="text-xs font-semibold text-zinc-300">Trace</span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
                 {typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'beta0.0.1'}
               </span>
             </div>
-            <div className="text-[10px] text-zinc-500 font-mono mt-0.5 flex items-center space-x-1">
-              <span>build</span>
-              <span className="text-zinc-400 select-all font-mono">
-                #{typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}
+            <div className="text-[10px] text-zinc-500 font-mono mt-0.5 flex items-center space-x-1 truncate max-w-sm sm:max-w-md">
+              <span className="shrink-0">sha256:</span>
+              <span
+                className="text-zinc-400 select-all font-mono truncate"
+                title={typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}
+              >
+                {typeof __BUILD_HASH__ !== 'undefined' ? __BUILD_HASH__ : 'dev-local'}
               </span>
             </div>
           </div>
@@ -325,7 +337,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors shadow-sm"
+            className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors shadow-sm shrink-0"
           >
             Done
           </button>

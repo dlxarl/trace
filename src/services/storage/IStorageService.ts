@@ -52,6 +52,7 @@ export interface IStorageService {
   exportProjectZip(projectId: string): Promise<Blob>;
   importProjectZip(file: File | ArrayBuffer): Promise<string>;
   openInExplorer(projectId?: string): Promise<boolean>;
+  selectDirectory?(): Promise<string | null>;
 
   // Events & File Watching
   onStorageChange(listener: (event: StorageChangeEvent) => void): () => void;

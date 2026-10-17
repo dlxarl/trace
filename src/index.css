@@ -16,6 +16,12 @@
   --obsidian-dim: #5c5c66;
 }
 
+/* Thin, elegant, modern icons (Linear / Obsidian style) */
+svg.lucide,
+.lucide {
+  stroke-width: 1.5px !important;
+}
+
 body {
   background-color: #141416;
   color: #ececed;

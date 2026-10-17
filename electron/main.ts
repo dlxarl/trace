@@ -7,7 +7,45 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
-let currentWorkspacePath = path.join(app.getPath('documents'), 'Trace-OSINT-Workspace');
+
+const configPath = path.join(app.getPath('userData'), 'trace-config.json');
+
+function loadConfig(): { workspacePath?: string } {
+  try {
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    }
+  } catch {}
+  return {};
+}
+
+function saveConfig(cfg: { workspacePath?: string }) {
+  try {
+    ensureDirSync(path.dirname(configPath));
+    atomicWriteFileSync(configPath, JSON.stringify(cfg, null, 2));
+  } catch (err) {
+    console.error('Failed to save config:', err);
+  }
+}
+
+// Default folder: ~/Documents/trace
+const defaultTracePath = path.join(app.getPath('documents'), 'trace');
+const legacyTracePath = path.join(app.getPath('documents'), 'Trace-OSINT-Workspace');
+
+// Migrate legacy 'Trace-OSINT-Workspace' to 'trace' if needed
+if (!fs.existsSync(defaultTracePath) && fs.existsSync(legacyTracePath)) {
+  try {
+    fs.renameSync(legacyTracePath, defaultTracePath);
+  } catch (err) {
+    console.error('Failed to migrate legacy directory to trace:', err);
+  }
+}
+
+const initialConfig = loadConfig();
+let currentWorkspacePath =
+  initialConfig.workspacePath && fs.existsSync(initialConfig.workspacePath)
+    ? initialConfig.workspacePath
+    : defaultTracePath;
 
 function ensureDirSync(dirPath: string) {
   if (!fs.existsSync(dirPath)) {
@@ -32,6 +70,8 @@ function sanitizeRelativePath(baseDir: string, targetPath: string): string {
 
 function createWindow() {
   const iconPath = path.join(__dirname, '../build/icon.png');
+  const isMac = process.platform === 'darwin';
+  const isWin = process.platform === 'win32';
 
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -39,8 +79,15 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 650,
     backgroundColor: '#141416',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 12 },
+    titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+    titleBarOverlay: isWin
+      ? {
+          color: '#121215',
+          symbolColor: '#cbd5e1',
+          height: 38,
+        }
+      : undefined,
+    trafficLightPosition: isMac ? { x: 14, y: 12 } : undefined,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -48,6 +95,15 @@ function createWindow() {
       contextIsolation: true,
       sandbox: false,
     },
+  });
+
+  // Track and notify renderer of macOS full-screen state
+  mainWindow.on('enter-full-screen', () => {
+    mainWindow?.webContents.send('window:fullscreen-change', true);
+  });
+
+  mainWindow.on('leave-full-screen', () => {
+    mainWindow?.webContents.send('window:fullscreen-change', false);
   });
 
   // Intercept external links
@@ -103,10 +159,38 @@ function setupIpcHandlers() {
   ipcMain.handle('dialog:selectDirectory', async () => {
     const result = await dialog.showOpenDialog(mainWindow!, {
       properties: ['openDirectory', 'createDirectory'],
-      title: 'Select Trace OSINT Workspace Directory',
+      title: 'Select Trace Working Directory',
+      defaultPath: currentWorkspacePath,
     });
     if (!result.canceled && result.filePaths.length > 0) {
       currentWorkspacePath = result.filePaths[0];
+      ensureDirSync(currentWorkspacePath);
+      ensureDirSync(path.join(currentWorkspacePath, 'projects'));
+      saveConfig({ workspacePath: currentWorkspacePath });
+
+      const wsFile = path.join(currentWorkspacePath, 'workspace.json');
+      let ws: any = {
+        id: 'workspace',
+        name: path.basename(currentWorkspacePath),
+        workspacePath: currentWorkspacePath,
+        updated_at: new Date().toISOString(),
+      };
+      if (fs.existsSync(wsFile)) {
+        try {
+          ws = JSON.parse(fs.readFileSync(wsFile, 'utf-8'));
+          ws.workspacePath = currentWorkspacePath;
+        } catch {}
+      } else {
+        ws.created_at = new Date().toISOString();
+      }
+      atomicWriteFileSync(wsFile, JSON.stringify(ws, null, 2));
+
+      mainWindow?.webContents.send('storage:changed', {
+        type: 'workspace',
+        action: 'updated',
+        projectId: '',
+      });
+
       return currentWorkspacePath;
     }
     return null;
@@ -114,11 +198,15 @@ function setupIpcHandlers() {
 
   // Workspace: Get
   ipcMain.handle('workspace:get', async () => {
+    ensureDirSync(currentWorkspacePath);
+    ensureDirSync(path.join(currentWorkspacePath, 'projects'));
     const wsFile = path.join(currentWorkspacePath, 'workspace.json');
     if (fs.existsSync(wsFile)) {
       try {
         const raw = fs.readFileSync(wsFile, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        parsed.workspacePath = currentWorkspacePath;
+        return parsed;
       } catch (err) {
         console.error('Failed to parse workspace.json:', err);
       }
@@ -126,7 +214,7 @@ function setupIpcHandlers() {
     const now = new Date().toISOString();
     const defaultWs = {
       id: 'default-workspace',
-      name: 'Local OSINT Workspace',
+      name: path.basename(currentWorkspacePath) || 'trace',
       workspacePath: currentWorkspacePath,
       created_at: now,
       updated_at: now,
@@ -382,5 +470,59 @@ function setupIpcHandlers() {
     }
     await shell.openPath(targetPath);
     return true;
+  });
+
+  // Window State & Platform
+  ipcMain.handle('window:isFullScreen', () => mainWindow?.isFullScreen() || false);
+  ipcMain.handle('app:getPlatform', () => process.platform);
+
+  // Network Request (Proxy to bypass CORS for API Quick Sources)
+  ipcMain.handle('net:request', async (_, req: {
+    url: string;
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+  }) => {
+    const startTime = Date.now();
+    try {
+      const isBodyAllowed = req.method && !['GET', 'HEAD'].includes(req.method.toUpperCase());
+      const response = await fetch(req.url, {
+        method: req.method || 'GET',
+        headers: req.headers,
+        body: isBodyAllowed ? req.body : undefined,
+      });
+
+      const contentType = response.headers.get('content-type') || '';
+      let data: any;
+      if (contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch {
+          data = await response.text();
+        }
+      } else {
+        data = await response.text();
+      }
+
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((val, key) => {
+        responseHeaders[key] = val;
+      });
+
+      return {
+        success: true,
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+        data,
+        durationMs: Date.now() - startTime,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || 'Network request failed',
+        durationMs: Date.now() - startTime,
+      };
+    }
   });
 }

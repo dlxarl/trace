@@ -553,6 +553,10 @@ export class BrowserStorageAdapter implements IStorageService {
     return false;
   }
 
+  async selectDirectory(): Promise<string | null> {
+    return null;
+  }
+
   onStorageChange(listener: (event: StorageChangeEvent) => void): () => void {
     this.listeners.push(listener);
     return () => {

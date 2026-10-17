@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProjectData, Relationship, RelationshipStatus, RELATIONSHIP_STATUSES } from '@/types';
 import { StatusBadge } from '@/components/common/StatusBadge';
 import { X, Share2, Plus } from 'lucide-react';
@@ -9,6 +9,7 @@ interface NewRelationshipModalProps {
   onCreate: (rel: Relationship) => void;
   projectData: ProjectData;
   defaultSourceId?: string;
+  defaultTargetId?: string;
 }
 
 const COMMON_RELATIONSHIP_TYPES = [
@@ -34,17 +35,39 @@ export const NewRelationshipModal: React.FC<NewRelationshipModalProps> = ({
   onCreate,
   projectData,
   defaultSourceId,
+  defaultTargetId,
 }) => {
-  const [sourceId, setSourceId] = useState<string>(
-    defaultSourceId || (projectData.entities[0]?.id ?? '')
-  );
-  const [targetId, setTargetId] = useState<string>(
-    projectData.entities.find((e) => e.id !== defaultSourceId)?.id ?? ''
-  );
+  const [sourceId, setSourceId] = useState<string>('');
+  const [targetId, setTargetId] = useState<string>('');
   const [type, setType] = useState<string>('associated_with');
   const [status, setStatus] = useState<RelationshipStatus>('candidate');
   const [confidence, setConfidence] = useState<number | null>(null);
   const [directed, setDirected] = useState<boolean>(true);
+
+  // Synchronize when modal is opened or defaults change
+  useEffect(() => {
+    if (isOpen && projectData.entities.length > 0) {
+      const src = defaultSourceId && projectData.entities.some((e) => e.id === defaultSourceId)
+        ? defaultSourceId
+        : projectData.entities[0].id;
+
+      let tgt = defaultTargetId && projectData.entities.some((e) => e.id === defaultTargetId)
+        ? defaultTargetId
+        : undefined;
+
+      if (!tgt || tgt === src) {
+        const other = projectData.entities.find((e) => e.id !== src);
+        tgt = other ? other.id : src;
+      }
+
+      setSourceId(src);
+      setTargetId(tgt);
+      setType('associated_with');
+      setStatus('candidate');
+      setConfidence(null);
+      setDirected(true);
+    }
+  }, [isOpen, defaultSourceId, defaultTargetId, projectData]);
 
   if (!isOpen) return null;
 
@@ -99,7 +122,14 @@ export const NewRelationshipModal: React.FC<NewRelationshipModalProps> = ({
               </label>
               <select
                 value={sourceId}
-                onChange={(e) => setSourceId(e.target.value)}
+                onChange={(e) => {
+                  const newSrc = e.target.value;
+                  setSourceId(newSrc);
+                  if (targetId === newSrc) {
+                    const other = projectData.entities.find((ent) => ent.id !== newSrc);
+                    if (other) setTargetId(other.id);
+                  }
+                }}
                 className="w-full px-2.5 py-1.5 bg-[#141416] border border-obsidian-border rounded text-obsidian-text focus:outline-none focus:border-obsidian-accent cursor-pointer"
                 required
               >

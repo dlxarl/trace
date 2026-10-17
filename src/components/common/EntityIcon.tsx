@@ -1,19 +1,17 @@
-import React from 'react';
 import {
   User,
   Users,
-  Building2,
-  Globe,
+  Briefcase,
+  Globe2,
   Network,
-  AtSign,
+  Fingerprint,
   Mail,
   Phone,
   Server,
   MapPin,
   FileText,
   Calendar,
-  Tag,
-  HelpCircle,
+  Boxes,
 } from 'lucide-react';
 import { EntityType, ENTITY_TYPES } from '@/types';
 
@@ -21,37 +19,43 @@ interface EntityIconProps {
   type: EntityType | string;
   className?: string;
   size?: number;
+  strokeWidth?: number;
 }
 
-export const EntityIcon: React.FC<EntityIconProps> = ({ type, className = 'w-4 h-4', size }) => {
+export const EntityIcon: React.FC<EntityIconProps> = ({
+  type,
+  className = 'w-4 h-4',
+  size,
+  strokeWidth = 1.5,
+}) => {
   switch (type) {
     case 'person':
-      return <User className={className} size={size} />;
+      return <User className={className} size={size} strokeWidth={strokeWidth} />;
     case 'organization':
-      return <Users className={className} size={size} />;
+      return <Users className={className} size={size} strokeWidth={strokeWidth} />;
     case 'company':
-      return <Building2 className={className} size={size} />;
+      return <Briefcase className={className} size={size} strokeWidth={strokeWidth} />;
     case 'website':
-      return <Globe className={className} size={size} />;
+      return <Globe2 className={className} size={size} strokeWidth={strokeWidth} />;
     case 'domain':
-      return <Network className={className} size={size} />;
+      return <Network className={className} size={size} strokeWidth={strokeWidth} />;
     case 'account':
-      return <AtSign className={className} size={size} />;
+      return <Fingerprint className={className} size={size} strokeWidth={strokeWidth} />;
     case 'email':
-      return <Mail className={className} size={size} />;
+      return <Mail className={className} size={size} strokeWidth={strokeWidth} />;
     case 'phone':
-      return <Phone className={className} size={size} />;
+      return <Phone className={className} size={size} strokeWidth={strokeWidth} />;
     case 'ip':
-      return <Server className={className} size={size} />;
+      return <Server className={className} size={size} strokeWidth={strokeWidth} />;
     case 'location':
-      return <MapPin className={className} size={size} />;
+      return <MapPin className={className} size={size} strokeWidth={strokeWidth} />;
     case 'document':
-      return <FileText className={className} size={size} />;
+      return <FileText className={className} size={size} strokeWidth={strokeWidth} />;
     case 'event':
-      return <Calendar className={className} size={size} />;
+      return <Calendar className={className} size={size} strokeWidth={strokeWidth} />;
     case 'custom':
     default:
-      return <Tag className={className} size={size} />;
+      return <Boxes className={className} size={size} strokeWidth={strokeWidth} />;
   }
 };
 

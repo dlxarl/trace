@@ -20,8 +20,7 @@ import {
   Upload,
   Image as ImageIcon,
   Check,
-  Search,
-  Sparkles,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface EntityEditorProps {
@@ -625,7 +624,7 @@ export const EntityEditor: React.FC<EntityEditorProps> = ({
                   <div className="absolute top-9 left-0 right-0 z-30 bg-[#191922] border border-[#2e2e3f] rounded-xl shadow-2xl p-1 max-h-56 overflow-y-auto animate-in fade-in zoom-in-95 duration-100">
                     <div className="px-2 py-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
                       <span>Attribute Presets</span>
-                      <Sparkles className="w-3 h-3 text-purple-400" />
+                      <SlidersHorizontal className="w-3 h-3 text-indigo-400" />
                     </div>
                     {filteredPresets.map((preset) => (
                       <button

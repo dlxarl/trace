@@ -20,7 +20,7 @@ Welcome to **Trace**, your local-first intelligence investigation workbench desi
 ### 1. 🌐 Interactive Graph Canvas
 - **Circular Glow & Avatars**: Entities feature clean circular nodes, photos/avatars inside nodes, and soft glowing halo effects on hover without rectangular artifact boxes.
 - **Physics Bounce Simulation**: Click and drag any node on the graph canvas — notice how neighboring nodes calculate repulsive forces and gently bounce out of the way!
-- **Notes on the Graph**: Toggle the **Notes (StickyNote)** icon in the top-right toolbar of the graph to display investigation notes directly on the graph canvas, automatically connected via \`[[wikilinks]]\`.
+- **Notes on the Graph**: Toggle the **Notes** icon in the top-right toolbar of the graph to display investigation notes directly on the graph canvas, automatically connected via \`[[wikilinks]]\`.
 
 ### 2. 👤 Entity Records & Photo Support
 - Double-click on **Elena Rostova** in the left sidebar or graph to view her profile.
@@ -392,7 +392,7 @@ This note appears directly as a node on the **Interactive Graph**!
 
 ## How to explore the graph:
 1. Click the **Interactive Graph** tab.
-2. In the top-right toolbar, ensure the **StickyNote** icon is active to see this note.
+2. In the top-right toolbar, ensure the **Notes** icon is active to see this note.
 3. **Physics in Action**: Drag [[ent-person-01]] or [[ent-location-01]]. Watch other nodes gently push and bounce away from your cursor!
 4. **Layout Switching**: Try switching between **COSE**, **Concentric**, and **Breadthfirst** layout modes from the layout buttons in the graph controls.
 5. **Right-Click Context Menu**: Right-click any node or link to open quick actions (pin tab, link entities, copy ID).
